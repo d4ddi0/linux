@@ -248,6 +248,16 @@ config INPUT_APANEL
 	 To compile this driver as a module, choose M here: the module will
 	 be called apanel.
 
+config INPUT_EVIFPANEL
+	tristate "Uniwest EVI Front panel"
+	select SERIO
+	help
+	  Say Y if you have a Uniwest EVI and want to enable the
+	  sliders and buttons on the front.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called evifpanel.
+
 config INPUT_GP2A
 	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
 	depends on I2C
