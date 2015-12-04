@@ -568,4 +568,10 @@ config CHARGER_RT9455
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
 
+config EVI_POWER
+	tristate "UniWest evi power supply"
+	depends on SPI
+	help
+	  Say yes to include support for evi power supply
+
 endif # POWER_SUPPLY
