@@ -1,0 +1,21 @@
+Binding for UniWest evi power supply
+
+Required properties:
+- compatible: Should contain one of the following:
+ * "uniwest,evi-pb"
+- reg:			   integer, i2c address of the device.
+- spi-max-frequency:	   Max spi clock frequency in Hz
+- reg:			   The spi chipselect
+- interrupts:		   Interrupts for power supply events
+- interrupt-parent:	   The interrupt controller
+
+Example
+
+pwr_mcu: lpc1227@0 {
+	pwr_mcu: lpc1227@0 {
+	compatible = "uniwest,evi-pb";
+	spi-max-frequency = <2450000>;
+	reg = <0>;
+	interrupts = <10 IRQ_TYPE_EDGE_RISING>;
+	interrupt-parent = <&gpio2>;
+};
