@@ -43,7 +43,6 @@ int powerboard_minor = 0;
 const char driver_name[] = DEVICE_NAME;
 
 struct evi_pb {
-	int number_handles;
 	struct semaphore spi_sem;
 	struct semaphore fop_sem;
 	struct spi_device *spi;
@@ -83,7 +82,6 @@ static void pb_power_off(void);
 static int pb_probe(struct spi_device *spi);
 static int pb_remove(struct spi_device *spi);
 static int pb_open(struct inode *inode, struct file *filp);
-static int pb_release(struct inode *inode, struct file *filp);
 static long pb_ioctl_read(unsigned long user_addr, struct evi_pb *pb);
 static long pb_ioctl_write(unsigned long user_addr, struct evi_pb *pb);
 static long pb_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
@@ -93,7 +91,6 @@ static void pb_free_char_devices(struct evi_pb *pb);
 static unsigned int pb_irq;
 
 static struct evi_pb pb_dev = {
-	.number_handles = 0,
 };
 
 const struct file_operations dev_fops = {
@@ -101,7 +98,6 @@ const struct file_operations dev_fops = {
 	.read = NULL,
 	.write = NULL,
 	.open = pb_open,
-	.release = pb_release,
 	.unlocked_ioctl = pb_ioctl,
 	.llseek = no_llseek,
 };
@@ -421,16 +417,8 @@ static int pb_open(struct inode *inode, struct file *filp)
 		return -ERESTARTSYS;
 
 	pr_debug("Powerboard Spi device opened\n");
-	pb_dev.number_handles++;
 	filp->private_data = &pb_dev;
 	up(&pb_dev.fop_sem);
-
-	return 0;
-}
-
-static int pb_release(struct inode *inode, struct file *filp)
-{
-	pb_dev.number_handles--;
 
 	return 0;
 }
