@@ -330,8 +330,10 @@ static void pb_irq_work(struct work_struct *work)
 		dev_info(&pb->spi->dev, "read 0x%8.8X from power status\n",
 			 status.raw);
 
-	if (status.reg.shutting_down)
+	if (status.reg.shutting_down) {
+		disable_irq(pb_irq);
 		orderly_poweroff(true);
+	}
 
 	if (status.reg.pmic0_fault)
 		handle_pmic_fault(pb, 0x0e);
