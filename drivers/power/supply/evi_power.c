@@ -158,22 +158,14 @@ static ssize_t show_pmic_alarm(struct device *dev,
 	return sprintf(buf, "%d\n", pb_dev.last_status.raw & (1 << channel));
 }
 
-static ssize_t show_in1_alarm(struct device *dev,
+static ssize_t show_motor_alarm(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", pb_dev.last_motor_status[0].raw);
-}
+	struct sensor_device_attribute *da = to_sensor_dev_attr(attr);
+	uint8_t channel = da->index;
 
-static ssize_t show_in2_alarm(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", pb_dev.last_motor_status[1].raw);
-}
-
-static ssize_t show_in3_alarm(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", pb_dev.last_motor_status[2].raw);
+	return sprintf(buf, "%d\n",
+			pb_dev.last_motor_status[channel].reg.alert);
 }
 
 static SENSOR_DEVICE_ATTR(in0_lcrit_alarm, S_IRUGO, show_pmic_alarm, NULL, 1);
@@ -199,7 +191,9 @@ static SENSOR_DEVICE_ATTR(curr12_max_alarm, S_IRUGO, show_pmic_alarm, NULL, 27);
 static SENSOR_DEVICE_ATTR(curr13_max_alarm, S_IRUGO, show_pmic_alarm, NULL, 28);
 static SENSOR_DEVICE_ATTR(curr14_max_alarm, S_IRUGO, show_pmic_alarm, NULL, 29);
 
-
+static SENSOR_DEVICE_ATTR(power1_alarm, S_IRUGO, show_motor_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(power2_alarm, S_IRUGO, show_motor_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(power3_alarm, S_IRUGO, show_motor_alarm, NULL, 2);
 
 static struct attribute *powerboard_attr[] = {
 	&sensor_dev_attr_in0_lcrit_alarm.dev_attr.attr,
@@ -223,13 +217,24 @@ static struct attribute *powerboard_attr[] = {
 	NULL
 };
 
+static struct attribute *motors_attr[] = {
+	&sensor_dev_attr_power1_alarm.dev_attr.attr,
+	&sensor_dev_attr_power2_alarm.dev_attr.attr,
+	&sensor_dev_attr_power3_alarm.dev_attr.attr,
+	NULL
+};
 static const struct attribute_group powerboard_group = {
 	.name = "pmic0",
 	.attrs = powerboard_attr,
 };
+static const struct attribute_group motors_group = {
+	.name = "motors",
+	.attrs = motors_attr,
+};
 
 static const struct attribute_group *powerboard_groups[] = {
 	&powerboard_group,
+	&motors_group,
 	NULL
 };
 
