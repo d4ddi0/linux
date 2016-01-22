@@ -418,28 +418,7 @@ static int pb_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static long _pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd_type)
-{
-	long ret = 0;
-	struct evi_power_cmd cmd = {
-		.zero_pad = 0,
-		.start_byte = EVI_POWER_SPI_START,
-		.reg_addr = reg,
-		.command = cmd_type,
-	};
-
-	ret = spi_write(pb->spi, &cmd.zero_pad, 1);
-	if (!ret)
-		ret = spi_write(pb->spi, &cmd.start_byte, 1);
-	if (!ret)
-		ret = spi_write(pb->spi, &cmd.reg_addr, 1);
-	if (!ret)
-		ret = spi_write(pb->spi, &cmd.command, 1);
-
-	return ret;
-}
-
-static long _legacy_pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd_type)
+static long pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd_type)
 {
 	char output_reg;
 	int ret;
@@ -461,46 +440,7 @@ static long _legacy_pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd_type)
 	return ret;
 }
 
-static long pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd)
-{
-	if (pb->device_ver.major >= 1)
-		return _pb_op_init(pb, reg, cmd);
-	else
-		return _legacy_pb_op_init(pb, reg, cmd);
-}
-
-static long _pb_read_bytes(struct evi_pb *pb, char *dest, long bytes)
-{
-	long bytes_read = -1;
-	const int attempts = 16;
-	int i;
-
-	memset(dest, '\0', bytes);
-	for (i = 0; i < attempts; ++i) {
-		int ret = spi_read(pb->spi, dest, 1);
-
-		if (ret < 0)
-			break;
-		if (bytes_read < 0) {
-			if (*dest == EVI_POWER_SPI_START)
-				bytes_read = 0;
-
-		} else {
-			++bytes_read;
-			++dest;
-			if (bytes_read >= bytes)
-				break;
-		}
-	}
-	if (bytes_read < 0)
-		pr_err("Failed to read from evi_pb\n");
-	else if (bytes_read < bytes)
-		pr_warn("Read only %ld of %ld bytes from evi_pb\n",
-			bytes, bytes_read);
-	return bytes_read;
-}
-
-static long _legacy_pb_read_bytes(struct evi_pb *pb, char *dest, int bytes)
+static long pb_read_bytes(struct evi_pb *pb, char *dest, int bytes)
 {
 	int i;
 
@@ -513,14 +453,6 @@ static long _legacy_pb_read_bytes(struct evi_pb *pb, char *dest, int bytes)
 		pr_err("Read only %d of %d bytes from evi_pb\n", i, bytes);
 
 	return i;
-}
-
-static long pb_read_bytes(struct evi_pb *pb, char *dest, int bytes)
-{
-	if (pb->device_ver.major >= 1)
-		return _pb_read_bytes(pb, dest, bytes);
-	else
-		return _legacy_pb_read_bytes(pb, dest, bytes);
 }
 
 static long pb_read32(struct evi_pb *pb, uint32_t addr, void *buf)
