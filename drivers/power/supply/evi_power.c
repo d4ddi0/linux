@@ -54,6 +54,8 @@ struct evi_pb {
 	struct pmic_data last_status;
 	struct motor_data motor_status[3];
 	struct motor_data last_motor_status[3];
+	int (*write_reg) (struct evi_pb *, int, u32);
+	int (*read_reg) (struct evi_pb *, int, u32 *);
 #if defined(CONFIG_HWMON)
 	struct device *hwmon_dev;
 #endif
@@ -75,8 +77,6 @@ struct evi_power_cmd {
 };
 
 static int pb_get_version(struct evi_pb *pb);
-static long pb_read32(struct evi_pb *pb, uint32_t addr, void *buf);
-static long pb_write32(struct evi_pb *pb, uint32_t addr, const void *buf);
 static void pb_power_off(void);
 static int pb_probe(struct spi_device *spi);
 static int pb_remove(struct spi_device *spi);
@@ -127,7 +127,7 @@ static void __pmic_status_msg(struct evi_pb *pb, int st, int last_st, char *msg)
 static void handle_pmic_fault(struct evi_pb *pb, uint32_t reg)
 {
 
-	int ret = pb_read32(pb, reg, &pb->status.raw);
+	int ret = pb->read_reg(pb, reg, &pb->status.raw);
 
 	if (ret) {
 		dev_alert(&pb->spi->dev, "pb_read32 failed with %d\n", ret);
@@ -294,7 +294,7 @@ static void __motor_status_msg(struct evi_pb *pb, int st, int last_st, char *msg
 
 static void handle_motor_fault(struct evi_pb *pb, uint32_t reg, uint32_t motor)
 {
-	int ret = pb_read32(pb, reg, &pb->motor_status[motor].raw);
+	int ret = pb->read_reg(pb, reg, &pb->motor_status[motor].raw);
 
 	if (ret) {
 		dev_alert(&pb->spi->dev, "pb_read32 failed with %d\n", ret);
@@ -316,7 +316,7 @@ static void pb_irq_work(struct work_struct *work)
 		.raw = 0,
 	};
 
-	ret = pb_read32(pb, 2, &status.raw);
+	ret = pb->read_reg(pb, 2, &status.raw);
 
 	if (ret)
 		dev_alert(&pb->spi->dev, "pb_read32 failed with %d\n", ret);
@@ -455,8 +455,9 @@ static long pb_read_bytes(struct evi_pb *pb, char *dest, int bytes)
 	return i;
 }
 
-static long pb_read32(struct evi_pb *pb, uint32_t addr, void *buf)
+static int legacy_read_reg(struct evi_pb *pb, int addr, u32 *value)
 {
+	void *buf = value;
 	long ret;
 
 	if (down_interruptible(&pb->lock))
@@ -486,7 +487,7 @@ static long pb_ioctl_read(unsigned long user_addr, struct evi_pb *pb)
 		ret = -1;
 		goto evi_pb_ioctl_read_exit;
 	}
-	ret = pb_read32(pb, request.reg_addr, request.data);
+	ret = pb->read_reg(pb, request.reg_addr, (u32 *)request.data);
 	if (ret)
 		goto evi_pb_ioctl_read_exit;
 
@@ -500,8 +501,9 @@ evi_pb_ioctl_read_exit:
 	return ret;
 }
 
-static long pb_write32(struct evi_pb *pb, uint32_t addr, const void *buf)
+static int legacy_write_reg(struct evi_pb *pb, int addr, u32 value)
 {
+	const void *buf = &value;
 	long ret;
 	int i;
 
@@ -538,7 +540,7 @@ static long pb_ioctl_write(unsigned long user_addr, struct evi_pb *pb)
 		ret = -1;
 		goto evi_pb_ioctl_write_exit;
 	}
-	ret = pb_write32(pb, request.reg_addr, request.data);
+	ret = pb->write_reg(pb, request.reg_addr, *(u32 *)request.data);
 
 evi_pb_ioctl_write_exit:
 	return ret;
@@ -650,23 +652,22 @@ static int pb_get_version(struct evi_pb *pb)
 	if (!ret)
 		ret = pb_read_bytes(pb, (char *)&pb->device_ver, 4) - 4;
 
-	if (pb->device_ver.major == 0 &&
-	    pb->device_ver.minor == 0 &&
-	    pb->device_ver.rev == 0 &&
-	    pb->device_ver.subrev == 0) {
-		/* failed read. try new protocol */
-		pr_err("Failed to get to powerboard version with legacy protocol\n");
-		pb->device_ver.major = 255;
-		ret = pb_op_init(pb, 1, EVI_POWER_SPI_READ_REGISTER);
-		if (!ret)
-			ret = pb_read_bytes(pb, (char *)&pb->device_ver, 4) - 4;
+	if (pb->device_ver.major || pb->device_ver.minor ||
+			pb->device_ver.rev || pb->device_ver.subrev) {
+		dev_info(&pb->spi->dev, "legacy firmware version %d.%d.%d.%d\n",
+			 pb->device_ver.major, pb->device_ver.minor,
+			 pb->device_ver.rev, pb->device_ver.subrev);
+		pb->read_reg = legacy_read_reg;
+		pb->write_reg = legacy_write_reg;
+		return 0;
 	}
-	if (pb->device_ver.major == 0 &&
-	    pb->device_ver.minor == 0 &&
-	    pb->device_ver.rev == 0 &&
-	    pb->device_ver.subrev == 0) {
-		pr_err("Failed to get to powerboard version.\n");
-	}
+
+
+	dev_err(&pb->spi->dev, "bad firmware version %d.%d.%d.%d\n",
+		pb->device_ver.major, pb->device_ver.minor,
+		pb->device_ver.rev, pb->device_ver.subrev);
+	dev_err(&pb->spi->dev, "Failed to get version.\n");
+
 	return ret;
 }
 
@@ -675,13 +676,10 @@ static int pb_get_version(struct evi_pb *pb)
  */
 static void pb_power_off(void)
 {
-	char value[] = {0x01, 0x00, 0x00, 0x00};
 	long ret;
-	uint32_t addr;
 
 	pr_alert("evi_pb_poweroff called\n");
-	addr = (pb_dev.device_ver.major >= 1) ? 2 : 3;
-	ret = pb_write32(&pb_dev, addr, value);
+	ret = pb_dev.write_reg(&pb_dev, 3, 0x00000001);
 	if (ret)
 		pr_alert("evi_pb_poweroff failed to send: %ld\n", ret);
 	msleep(5000);
