@@ -43,8 +43,7 @@ int powerboard_minor = 0;
 const char driver_name[] = DEVICE_NAME;
 
 struct evi_pb {
-	struct semaphore spi_sem;
-	struct semaphore fop_sem;
+	struct semaphore lock;
 	struct spi_device *spi;
 	struct class *powerboard_class;
 	dev_t data_dev_num;
@@ -371,15 +370,15 @@ static int pb_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "Initializing\n");
 	memset(&pb_dev, 0, sizeof(struct evi_pb));
-	sema_init(&pb_dev.spi_sem, 1);
-
-	if (down_interruptible(&pb_dev.spi_sem))
-		return -EBUSY;
+	sema_init(&pb_dev.lock, 1);
 
 	pb_dev.spi = spi;
 	ret_val = pb_get_version(&pb_dev);
 	if (ret_val)
 		return ret_val;
+
+	if (down_interruptible(&pb_dev.lock))
+		return -EBUSY;
 
 	ret_val = init_character_device(&pb_dev);
 	if (ret_val)
@@ -395,30 +394,26 @@ static int pb_probe(struct spi_device *spi)
 #endif
 
 	INIT_WORK(&pb_dev.work, pb_irq_work);
-	up(&pb_dev.spi_sem);
+	up(&pb_dev.lock);
 	return 0;
 }
 
 static int pb_remove(struct spi_device *spi)
 {
-	if (down_interruptible(&pb_dev.spi_sem))
+	if (down_interruptible(&pb_dev.lock))
 		return -EBUSY;
 
 	pb_free_char_devices(&pb_dev);
 	pb_dev.spi = NULL;
 	dev_dbg(&spi->dev, "removed\n");
-	up(&pb_dev.spi_sem);
+	up(&pb_dev.lock);
 	return 0;
 }
 
 static int pb_open(struct inode *inode, struct file *filp)
 {
-	if (down_interruptible(&pb_dev.fop_sem))
-		return -ERESTARTSYS;
-
 	pr_debug("Powerboard Spi device opened\n");
 	filp->private_data = &pb_dev;
-	up(&pb_dev.fop_sem);
 
 	return 0;
 }
@@ -532,7 +527,7 @@ static long pb_read32(struct evi_pb *pb, uint32_t addr, void *buf)
 {
 	long ret;
 
-	if (down_interruptible(&pb->fop_sem))
+	if (down_interruptible(&pb->lock))
 		return -ERESTARTSYS;
 
 	ret = pb_op_init(pb, (uint8_t)addr, EVI_POWER_SPI_READ_REGISTER);
@@ -544,7 +539,7 @@ static long pb_read32(struct evi_pb *pb, uint32_t addr, void *buf)
 	ret = pb_read_bytes(pb, buf, 4) - 4;
 
 pb_read32_fail:
-	up(&pb->fop_sem);
+	up(&pb->lock);
 	return ret;
 }
 
@@ -578,7 +573,7 @@ static long pb_write32(struct evi_pb *pb, uint32_t addr, const void *buf)
 	long ret;
 	int i;
 
-	if (down_interruptible(&pb->fop_sem))
+	if (down_interruptible(&pb->lock))
 		return -ERESTARTSYS;
 
 	ret = pb_op_init(pb, (uint8_t)addr, EVI_POWER_SPI_WRITE_REGISTER);
@@ -596,7 +591,7 @@ static long pb_write32(struct evi_pb *pb, uint32_t addr, const void *buf)
 	}
 
 pb_write32_fail:
-	up(&pb->fop_sem);
+	up(&pb->lock);
 	return ret;
 }
 
@@ -674,8 +669,6 @@ static int init_character_device(struct evi_pb *pb)
 
 	pb->data_cdev.owner = THIS_MODULE;
 	pb->data_cdev.ops = &dev_fops;
-
-	sema_init(&pb_dev.fop_sem, 1);
 
 	ret_val = cdev_add(&pb->data_cdev, pb->data_dev_num, 1);
 
