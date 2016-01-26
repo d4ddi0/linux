@@ -76,29 +76,9 @@ struct evi_power_cmd {
 	uint8_t command;
 };
 
-static int pb_get_version(struct evi_pb *pb);
-static void pb_power_off(void);
-static int pb_probe(struct spi_device *spi);
-static int pb_remove(struct spi_device *spi);
-static int pb_open(struct inode *inode, struct file *filp);
-static long pb_ioctl_read(unsigned long user_addr, struct evi_pb *pb);
-static long pb_ioctl_write(unsigned long user_addr, struct evi_pb *pb);
-static long pb_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-static int init_character_device(struct evi_pb *pb);
-static void pb_free_char_devices(struct evi_pb *pb);
-
 static unsigned int pb_irq;
 
 static struct evi_pb pb_dev = {
-};
-
-const struct file_operations dev_fops = {
-	.owner = THIS_MODULE,
-	.read = NULL,
-	.write = NULL,
-	.open = pb_open,
-	.unlocked_ioctl = pb_ioctl,
-	.llseek = no_llseek,
 };
 
 static irqreturn_t pb_handle_irq(int irq, void *spi)
@@ -363,39 +343,12 @@ static int pb_irq_init(struct spi_device *spi)
 }
 
 /* SPI device code */
-
-static int pb_probe(struct spi_device *spi)
+static void pb_free_char_devices(struct evi_pb *pb)
 {
-	int ret_val = 0;
-
-	dev_dbg(&spi->dev, "Initializing\n");
-	memset(&pb_dev, 0, sizeof(struct evi_pb));
-	sema_init(&pb_dev.lock, 1);
-
-	pb_dev.spi = spi;
-	ret_val = pb_get_version(&pb_dev);
-	if (ret_val)
-		return ret_val;
-
-	if (down_interruptible(&pb_dev.lock))
-		return -EBUSY;
-
-	ret_val = init_character_device(&pb_dev);
-	if (ret_val)
-		return ret_val;
-	pm_power_off = pb_power_off;
-	ret_val = pb_irq_init(spi);
-	if (ret_val)
-		return ret_val;
-#if defined(CONFIG_HWMON)
-	pb_dev.hwmon_dev = devm_hwmon_device_register_with_groups(
-				&spi->dev, "powerboard", &pb_dev,
-				powerboard_groups);
-#endif
-
-	INIT_WORK(&pb_dev.work, pb_irq_work);
-	up(&pb_dev.lock);
-	return 0;
+	device_destroy(pb->powerboard_class, pb->data_dev_num);
+	cdev_del(&pb->data_cdev);
+	unregister_chrdev_region(pb->data_dev_num, 1);
+	class_destroy(pb->powerboard_class);
 }
 
 static int pb_remove(struct spi_device *spi)
@@ -578,6 +531,15 @@ static long pb_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
+const struct file_operations dev_fops = {
+	.owner = THIS_MODULE,
+	.read = NULL,
+	.write = NULL,
+	.open = pb_open,
+	.unlocked_ioctl = pb_ioctl,
+	.llseek = no_llseek,
+};
+
 static int init_character_device(struct evi_pb *pb)
 {
 	int ret_val;
@@ -635,14 +597,6 @@ evi_char_init_reg_region:
 	return ret_val;
 }
 
-static void pb_free_char_devices(struct evi_pb *pb)
-{
-	device_destroy(pb->powerboard_class, pb->data_dev_num);
-	cdev_del(&pb->data_cdev);
-	unregister_chrdev_region(pb->data_dev_num, 1);
-	class_destroy(pb->powerboard_class);
-}
-
 static int pb_get_version(struct evi_pb *pb)
 {
 	int ret;
@@ -684,6 +638,39 @@ static void pb_power_off(void)
 		pr_alert("evi_pb_poweroff failed to send: %ld\n", ret);
 	msleep(5000);
 	pr_alert("evi_pb_poweroff: power not off after 5 seconds!\n");
+}
+
+static int pb_probe(struct spi_device *spi)
+{
+	int ret_val = 0;
+
+	memset(&pb_dev, 0, sizeof(struct evi_pb));
+	sema_init(&pb_dev.lock, 1);
+
+	pb_dev.spi = spi;
+	ret_val = pb_get_version(&pb_dev);
+	if (ret_val)
+		return ret_val;
+
+	if (down_interruptible(&pb_dev.lock))
+		return -EBUSY;
+
+	ret_val = init_character_device(&pb_dev);
+	if (ret_val)
+		return ret_val;
+	pm_power_off = pb_power_off;
+	ret_val = pb_irq_init(spi);
+	if (ret_val)
+		return ret_val;
+#if defined(CONFIG_HWMON)
+	pb_dev.hwmon_dev = devm_hwmon_device_register_with_groups(
+				&spi->dev, "powerboard", &pb_dev,
+				powerboard_groups);
+#endif
+
+	INIT_WORK(&pb_dev.work, pb_irq_work);
+	up(&pb_dev.lock);
+	return 0;
 }
 
 #ifdef CONFIG_OF
