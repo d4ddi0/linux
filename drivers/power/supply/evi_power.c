@@ -597,34 +597,6 @@ evi_char_init_reg_region:
 	return ret_val;
 }
 
-static int pb_get_version(struct evi_pb *pb)
-{
-	int ret;
-
-	pb->device_ver.major = 0;
-	ret = pb_op_init(pb, 1, EVI_POWER_SPI_READ_REGISTER);
-	if (!ret)
-		ret = pb_read_bytes(pb, (char *)&pb->device_ver, 4) - 4;
-
-	if (pb->device_ver.major || pb->device_ver.minor ||
-			pb->device_ver.rev || pb->device_ver.subrev) {
-		dev_info(&pb->spi->dev, "legacy firmware version %d.%d.%d.%d\n",
-			 pb->device_ver.major, pb->device_ver.minor,
-			 pb->device_ver.rev, pb->device_ver.subrev);
-		pb->read_reg = legacy_read_reg;
-		pb->write_reg = legacy_write_reg;
-		return 0;
-	}
-
-
-	dev_err(&pb->spi->dev, "bad firmware version %d.%d.%d.%d\n",
-		pb->device_ver.major, pb->device_ver.minor,
-		pb->device_ver.rev, pb->device_ver.subrev);
-	dev_err(&pb->spi->dev, "Failed to get version.\n");
-
-	return ret;
-}
-
 /**
  * pb_poweroff - shut off system power from powerboard
  */
@@ -640,6 +612,46 @@ static void pb_power_off(void)
 	pr_alert("evi_pb_poweroff: power not off after 5 seconds!\n");
 }
 
+static int pb_legacy_detect(struct evi_pb *pb)
+{
+	int ret;
+	u32 ver;
+
+	ret = pb_op_init(pb, 1, EVI_POWER_SPI_READ_REGISTER);
+	if (ret)
+		return ret;
+
+	ret = pb_read_bytes(pb, (char *)&ver, 4) - 4;
+	if (ret)
+		return ret;
+
+	if (ver == 0 || ver == 0xffffffff) {
+		dev_err(&pb->spi->dev, "bad firmware ver: 0x%8.8x\n", ver);
+		return -ENODEV;
+	}
+
+	memcpy(&pb->device_ver, &ver, sizeof(pb->device_ver));
+	pb->read_reg = legacy_read_reg;
+	pb->write_reg = legacy_write_reg;
+
+	return 0;
+}
+
+static int pb_detect(struct evi_pb *pb)
+{
+	int ret;
+
+	ret = pb_legacy_detect(&pb_dev);
+	if (ret)
+		dev_err(&pb->spi->dev, "no powerboard detected: %d\n", ret);
+	else
+		dev_info(&pb->spi->dev, "found firmware version %d.%d.%d.%d\n",
+			 pb->device_ver.major, pb->device_ver.minor,
+			 pb->device_ver.rev, pb->device_ver.subrev);
+
+	return ret;
+}
+
 static int pb_probe(struct spi_device *spi)
 {
 	int ret_val = 0;
@@ -648,7 +660,7 @@ static int pb_probe(struct spi_device *spi)
 	sema_init(&pb_dev.lock, 1);
 
 	pb_dev.spi = spi;
-	ret_val = pb_get_version(&pb_dev);
+	ret_val = pb_detect(&pb_dev);
 	if (ret_val)
 		return ret_val;
 
