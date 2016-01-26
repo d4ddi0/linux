@@ -37,6 +37,10 @@
 
 #define UNHANDLED_BITS 0xFFFFFFC4
 #define DEVICE_NAME "powerboard"
+
+#define PB_READ		(0x03 << 24)
+#define PB_WRITE	(0x02 << 24)
+
 int powerboard_major = 44;
 int powerboard_minor = 0;
 
@@ -371,6 +375,36 @@ static int pb_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int read_reg(struct evi_pb *pb, int addr, u32 *value)
+{
+	u32 tx;
+	int ret;
+
+	if (down_interruptible(&pb->lock))
+		return -ERESTARTSYS;
+
+	tx = cpu_to_be32(addr | PB_READ);
+	ret = spi_write_then_read(pb->spi, &tx, sizeof(tx), value, 4);
+	up(&pb->lock);
+	return ret;
+}
+
+static int write_reg(struct evi_pb *pb, int addr, u32 value)
+{
+	u32 tx[2];
+	int ret;
+
+	if (down_interruptible(&pb->lock))
+		return -ERESTARTSYS;
+
+	tx[0] = cpu_to_be32(addr | PB_WRITE);
+	tx[1] = value;
+
+	ret = spi_write(pb->spi, &tx, sizeof(tx));
+	up(&pb->lock);
+	return ret;
+}
+
 static long pb_op_init(struct evi_pb *pb, uint8_t reg, uint8_t cmd_type)
 {
 	char output_reg;
@@ -612,11 +646,35 @@ static void pb_power_off(void)
 	pr_alert("evi_pb_poweroff: power not off after 5 seconds!\n");
 }
 
+static int pb_fw_detect(struct evi_pb *pb)
+{
+	int ret;
+	u32 ver;
+
+	ret = read_reg(pb, 1, (u32 *)&ver);
+	if (ret) {
+		dev_err(&pb->spi->dev, "failed to read version: %d\n", ret);
+		return ret;
+	}
+
+	if (ver == 0 || ver == 0xffffffff) {
+		dev_err(&pb->spi->dev, "bad firmware ver: 0x%8.8x\n", ver);
+		return -ENODEV;
+	}
+
+	memcpy(&pb->device_ver, &ver, sizeof(pb->device_ver));
+	pb->read_reg = read_reg;
+	pb->write_reg = write_reg;
+
+	return 0;
+}
+
 static int pb_legacy_detect(struct evi_pb *pb)
 {
 	int ret;
 	u32 ver;
 
+	pb->spi->mode &= ~SPI_CPHA;
 	ret = pb_op_init(pb, 1, EVI_POWER_SPI_READ_REGISTER);
 	if (ret)
 		return ret;
@@ -641,7 +699,25 @@ static int pb_detect(struct evi_pb *pb)
 {
 	int ret;
 
-	ret = pb_legacy_detect(&pb_dev);
+	ret = pb_fw_detect(pb);
+	if (ret) {
+		u32 padding;
+
+		dev_info(&pb->spi->dev, "attempt legacy detect\n");
+		/*
+		 * new protocol uses a 4 byte header plus at least 4 bytes of
+		 * data, where old protocol uses exactly 5 bytes.
+		 * Pad communication out to 10, a multiple of 5
+		 */
+		ret = spi_read(pb->spi, &padding, 2);
+		if (ret) {
+			dev_err(&pb->spi->dev, "failed to read bytes\n");
+			return ret;
+		}
+
+		ret = pb_legacy_detect(pb);
+	}
+
 	if (ret)
 		dev_err(&pb->spi->dev, "no powerboard detected: %d\n", ret);
 	else
