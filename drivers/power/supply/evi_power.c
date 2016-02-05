@@ -224,11 +224,9 @@ static struct attribute *motors_attr[] = {
 	NULL
 };
 static const struct attribute_group powerboard_group = {
-	.name = "pmic0",
 	.attrs = powerboard_attr,
 };
 static const struct attribute_group motors_group = {
-	.name = "motors",
 	.attrs = motors_attr,
 };
 
