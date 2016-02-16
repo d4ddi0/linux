@@ -83,6 +83,12 @@ fi
 
 echo "%install"
 echo 'KBUILD_IMAGE=$(make image_name)'
+if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
+        # Only some architectures with OF support have this target
+	if grep -q dtbs_install "arch/$SRCARCH/Makefile"; then
+		echo '$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$RPM_BUILD_ROOT/boot/dtbs" dtbs_install'
+	fi
+fi
 echo "%ifarch ia64"
 echo 'mkdir -p $RPM_BUILD_ROOT/boot/efi $RPM_BUILD_ROOT/lib/modules'
 echo "%else"
