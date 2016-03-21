@@ -29,6 +29,7 @@ export KDEB_SOURCENAME
 TAR_CONTENT := $(KBUILD_ALLDIRS) .config .scmversion Makefile \
                Kbuild Kconfig COPYING $(wildcard localversion*)
 MKSPEC     := $(srctree)/scripts/package/mkspec
+RPMARCH    ?= $(UTS_MACHINE)
 
 quiet_cmd_src_tar = TAR     $(2).tar.gz
       cmd_src_tar = \
@@ -52,7 +53,7 @@ rpm-pkg rpm: FORCE
 	$(call cmd,src_tar,$(KERNELPATH),kernel.spec)
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
-	rpmbuild $(RPMOPTS) --define "_arch $(UTS_MACHINE)" --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz
+	rpmbuild $(RPMOPTS) --define "_arch $(UTS_MACHINE)" --target $(RPMARCH) -ta $(KERNELPATH).tar.gz
 	rm $(KERNELPATH).tar.gz kernel.spec
 
 # binrpm-pkg
@@ -64,7 +65,7 @@ binrpm-pkg: FORCE
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
 
 	rpmbuild $(RPMOPTS) --define "_builddir $(objtree)" --define "_arch $(UTS_MACHINE)" --target \
-		$(UTS_MACHINE) -bb $(objtree)/binkernel.spec
+		$(RPMARCH) -bb $(objtree)/binkernel.spec
 	rm binkernel.spec
 
 # Deb target
