@@ -1,0 +1,13 @@
+#
+# Uniwest EVI devices
+#
+
+config UNIWEST_EDDY
+	tristate "Uniwest EVI eddy current sensor"
+	default n
+	help
+	  This option enables support for Uniwest EVI eddy current sensor
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called uniwest-eddy
+	  If you are not sure, say N here.
