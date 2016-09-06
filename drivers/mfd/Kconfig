@@ -1718,6 +1718,17 @@ config MCP_UCB1200_TS
 
 endmenu
 
+config MFD_WEIM_FPGA
+	tristate "FPGA connected to imx weim"
+	select MFD_CORE
+	depends on FPGA
+	depends on IMX_WEIM
+	help
+	  Say yes if you have an FPGA connected the imx weim bus
+	  Most people should say no.
+
+	  If compiled as a module it will be called weim_fpga.
+
 config MFD_VEXPRESS_SYSREG
 	bool "Versatile Express System Registers"
 	depends on VEXPRESS_CONFIG && GPIOLIB && !ARCH_USES_GETTIMEOFFSET
