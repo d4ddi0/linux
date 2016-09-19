@@ -1,0 +1,85 @@
+/*
+ * Copyright 2015 United Western Technologies.
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+#include "imx6q-evi.dts"
+
+&ecspi3 {
+	status = "disabled";
+
+	/delete-node/ adc@0;
+	/delete-node/ adc@1;
+	/delete-node/ dac@2;
+};
+
+&ecspi5 {
+	fsl,spi-num-chipselects = <3>;
+	cs-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>,
+		<&gpio1 13 GPIO_ACTIVE_LOW>,
+		<&gpio7 7 GPIO_ACTIVE_LOW>;
+	/delete-node/ adc@2;
+	/delete-node/ rtc@3;
+	lvds_dimmer: dac@2 {
+		compatible = "ti,dac082s085";
+		spi-max-frequency = <2450000>;
+		reg = <2>;
+	};
+};
+
+&pinctrl_ecspi5cs {
+	fsl,pins = <
+		MX6QDL_PAD_SD2_DAT1__GPIO1_IO14 0x1b0b0
+		MX6QDL_PAD_SD2_DAT2__GPIO1_IO13 0x1b0b0
+		MX6QDL_PAD_SD3_DAT3__GPIO7_IO07 0x1b0b0
+		>;
+};
+
+&pinctrl_uart1 {
+	fsl,pins = <
+		MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA 0x1b0b1
+		MX6QDL_PAD_SD3_DAT6__UART1_RX_DATA 0x1b0b1
+		>;
+};
+
+&weimfpga {
+	uniwest,firmware-img = "uniwest/evi_fpga_XE.rbf";
+};
