@@ -173,6 +173,31 @@ err_unlock:
 	mutex_unlock(&ads->update_lock);
 	return ret;
 }
+static int ads1118_check(struct ads1118 *ads)
+{
+	int ret;
+	u16 buf[2];
+	struct spi_device *spi = to_spi_device(ads->dev);
+	struct ads_channel *chan = &ads->channel_data[0];
+	u16 cfg = be16_to_cpu(chan->cfg);
+	u16 val;
+
+	ret = spi_write(spi, &chan->cfg, sizeof(chan->cfg));
+	if (ret < 0)
+		return -ENODEV;
+
+	ret = spi_read(spi, &buf, sizeof(buf));
+	if (ret)
+		dev_info(&spi->dev, "error reading: %d\n", ret);
+
+	val = be16_to_cpu(buf[1]);
+	if ((cfg & 0x7fff) != val) {
+		dev_info(&spi->dev, "reading: %x, expected %x\n", val, cfg);
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static ssize_t show_in(struct device *dev, struct device_attribute *da,
 	char *buf)
@@ -484,6 +509,10 @@ static int ads1118_probe(struct spi_device *spi)
 	ads->dev = &spi->dev;
 	mutex_init(&ads->update_lock);
 	ads1118_get_cfg(ads);
+
+	err = ads1118_check(ads);
+	if (err)
+		return err;
 
 	ads->hwmon_dev =
 		devm_hwmon_device_register_with_groups(ads->dev, "ads1118",
