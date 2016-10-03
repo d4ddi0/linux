@@ -178,7 +178,18 @@
 		<&gpio2 9 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5 &pinctrl_ecspi5cs>;
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
 	status = "okay";
+
+	pwr_mcu: lpc1227@0 {
+		compatible = "uniwest,evi-pb";
+		spi-max-frequency = <200000>;
+		spi-cpha;
+		reg = <0>;
+		interrupts = <10 IRQ_TYPE_EDGE_RISING>;
+		interrupt-parent = <&gpio2>;
+	};
 
 	eeprom: m95m02@1 {
 		compatible = "st,m95m02", "atmel,at25";
