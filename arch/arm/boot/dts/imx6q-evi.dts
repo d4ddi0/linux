@@ -54,6 +54,10 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
+	chosen {
+		bootargs = "imxdrm.legacyfb_depth=32 isolcpus=3";
+	};
+
 	reg_usb_otg_vbus: regulator-usbotgvbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg_vbus";
