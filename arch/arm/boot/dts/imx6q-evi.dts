@@ -66,6 +66,14 @@
 		regulator-always-on;
 	};
 
+	evi_fpanel {
+		compatible="uniwest,evi-fpanel";
+		uart=<&uart2>;
+		reset-gpio = <&gpio4 5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_evifpanel>;
+	};
+
 	panel {
 		compatible = "sharp,lq101k1ly04";
 
@@ -422,6 +430,12 @@
 			MX6QDL_PAD_ENET_TX_EN__ENET_TX_EN 0x4001b0a8
 			MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x1b0b0
 			MX6QDL_PAD_GPIO_6__ENET_IRQ 0x000b1
+		>;
+	};
+
+	pinctrl_evifpanel: evifpanelgrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_19__GPIO4_IO05 0x1b0b0
 		>;
 	};
 
