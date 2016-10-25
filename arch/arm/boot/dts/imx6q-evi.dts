@@ -236,6 +236,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_weimfpga &pinctrl_weimcs>;
 	status = "okay";
+
+	weimfpga: fpga@0,0 {
+		compatible = "fsl,weim-fpga", "simple-mfd";
+		reg = <0 0 0>;
+		ranges;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		fsl,weim-cs-timing = <0x00c300b1 0x00001002 0x0a002000
+				      0x00000000 0x0d000480 0x00000000>;
+		uniwest,firmware-img = "uniwest/evi_fpga_A.rbf";
+		uniwest,fpga-mgr = <&fpga>;
+	};
 };
 
 &iomuxc {
