@@ -367,6 +367,15 @@
 				      0x00000000 0x0d000480 0x00000000>;
 		uniwest,firmware-img = "uniwest/evi_fpga_A.rbf";
 		uniwest,fpga-mgr = <&fpga_spi>;
+
+		eddy: eddycurrent@0,0 {
+			compatible = "uniwest,evi-eddy";
+			reg = <0 0 0x00020000>;
+			scannerirq-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+			statusirq-gpio = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_eddy>;
+		};
 	};
 };
 
@@ -457,6 +466,15 @@
 	pinctrl_evifpanel: evifpanelgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_19__GPIO4_IO05 0x1b0b0
+		>;
+	};
+
+	pinctrl_eddy: eddygrp {
+		fsl,pins = <
+			/* fpga scanner irq */
+			MX6QDL_PAD_GPIO_2__GPIO1_IO02 0x1b0b0
+			/* fpga status irq */
+			MX6QDL_PAD_GPIO_4__GPIO1_IO04 0x1b0b0
 		>;
 	};
 
