@@ -17,7 +17,6 @@ struct smartscanner {
 	void __iomem *status;
 	void __iomem *base;
    volatile uint32_t *user_flags;
-	struct gpio_desc *irq_gpiod;
 	unsigned int irq;
 	u32 msg;
 	u32 last_msg;
