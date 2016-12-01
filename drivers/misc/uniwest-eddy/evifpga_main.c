@@ -450,6 +450,7 @@ static int ef_eim_map(struct platform_device *pdev)
 {
 	struct resource res;
 	struct ef_device *evi = &ef_device;
+	uint32_t ef_ver;
 	int ret = 0;
 
 	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
@@ -460,6 +461,14 @@ static int ef_eim_map(struct platform_device *pdev)
 
 	/* devm_ioremap_resource automatically unmaps as the device is freed */
 	evi->fpga_registers = devm_ioremap_resource(&pdev->dev, &res);
+
+	ef_ver = read_weim(evi->fpga_registers + EVI_FPGA_EIM_VERSION);
+	dev_notice(evi->dev, "evi eddy device version: %08X\r\n", ef_ver);
+	if (ef_ver == 0xffffffff || ef_ver == 0) {
+		dev_err(&pdev->dev, "HW Version invalid!\n");
+		return -EPROBE_DEFER;
+	}
+
 	evi->ss.dev = evi->dev;
 	evi->ss.status = evi->fpga_registers + EVI_FPGA_EIM_STATUS;
 	evi->ss.base = evi->fpga_registers + EVI_FPGA_EIM_SCANNERSEND;
@@ -477,7 +486,6 @@ static int of_ef_probe(struct platform_device *pdev)
 	int ret_val = 0;
 	const struct of_device_id *match;
 	struct ef_device *evi = &ef_device;
-	uint32_t ef_ver;
 
 	match = of_match_device(of_ef_match, &pdev->dev);
 	if (!match)
@@ -501,11 +509,6 @@ static int of_ef_probe(struct platform_device *pdev)
 	ret_val = ef_statusirq_probe(evi);
 	if (ret_val)
 		goto out_ss_irq;
-
-	ef_ver = read_weim(ef_device.fpga_registers +
-			EVI_FPGA_EIM_VERSION);
-
-	dev_notice(evi->dev, "evi eddy device version: %08X\r\n", ef_ver);
 
 	return ret_val;
 
