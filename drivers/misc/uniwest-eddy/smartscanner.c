@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
@@ -105,15 +104,12 @@ int ef_scannerirq_probe(struct smartscanner *ss)
 
 	init_waitqueue_head(&ss->wq);
 
-	ss->irq_gpiod = devm_gpiod_get(ss->dev, "scannerirq", GPIOD_IN);
-	if (IS_ERR(ss->irq_gpiod)) {
-		dev_err(ss->dev, "Failed to get scannerirq gpio: %ld\n",
-			PTR_ERR(ss->irq_gpiod));
-		return PTR_ERR(ss->irq_gpiod);
+	ss->irq = irq_of_parse_and_map(ss->dev->of_node, 0);
+	if (!ss->irq) {
+		dev_err(ss->dev, "Could not find scanner irq\n");
+		return -ENODEV;
 	}
 
-	ss->irq = gpiod_to_irq(ss->irq_gpiod);
-	irq_set_irq_type(ss->irq, IRQ_TYPE_EDGE_RISING);
 	ret = request_irq(ss->irq, ef_handle_scannerirq,
 			0, "evifpga-scanner", ss);
 	if (ret)

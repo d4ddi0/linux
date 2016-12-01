@@ -25,8 +25,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
-//#include <linux/of_irq.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
@@ -49,7 +48,6 @@ struct ef_device {
 	dev_t data_dev_num;
 	struct cdev data_cdev;
 	struct device *dev;
-	struct gpio_desc *statusirq_gpiod;
 	unsigned int statusirq;
 	struct smartscanner ss;
 	u32 battbox_state;
@@ -131,15 +129,12 @@ int ef_statusirq_probe(struct ef_device *evi)
 {
 	int ret = 0;
 
-	evi->statusirq_gpiod = devm_gpiod_get(evi->dev, "statusirq", GPIOD_IN);
-	if (IS_ERR(evi->statusirq_gpiod)) {
-		dev_err(evi->dev, "Failed to get statusirq gpio: %ld\n",
-			PTR_ERR(evi->statusirq_gpiod));
-		return PTR_ERR(evi->statusirq_gpiod);
+	evi->statusirq = irq_of_parse_and_map(evi->dev->of_node, 1);
+	if (!evi->statusirq) {
+		dev_err(evi->dev, "Could not find status irq\n");
+		return -ENODEV;
 	}
 
-	evi->statusirq = gpiod_to_irq(evi->statusirq_gpiod);
-	irq_set_irq_type(evi->statusirq, IRQ_TYPE_EDGE_RISING);
 	ret = request_irq(evi->statusirq, ef_handle_statusirq,
 			0, "evifpga-status", evi);
 	if (ret) {
