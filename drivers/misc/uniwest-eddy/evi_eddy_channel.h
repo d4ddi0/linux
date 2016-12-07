@@ -1,5 +1,5 @@
 /***************************************************************************
- * FPGA_CHANNEL_DEF register offsets
+ * EVI_EDDY_CHANNEL_DEF register offsets
  *
  * Offsets from within the diff or abs channel
  * in any one of 128 TIMESLOT definitions
@@ -8,7 +8,7 @@
 #define EVI_EDDY_CHANNEL_H
 
 /*
- * FPGA_CHANNEL_CONTROL
+ * EVI_EDDY_CHANNEL_CONTROL
  * Bits 4: 0 - mux output for this channel
  * Bit     5 - Unused
  * Bits    6 - Probe Driver On/Off
@@ -20,26 +20,26 @@
  *             0 = use filter
  *             1 = bypass filter
  */
-#define FPGA_CHANNEL_CONTROL              0x0000
+#define EVI_EDDY_CHANNEL_CONTROL              0x0000
 
 /*
- * FPGA_CHANNEL_ANGLE_INCREMENT
+ * EVI_EDDY_CHANNEL_ANGLE_INCREMENT
  *
  * This used to be TableStep.
  * The value here indicates the angle of the output frequency.
  * 2^32 = 2pi radians = 360*, yes this is 33 bits
  */
-#define FPGA_CHANNEL_ANGLE_INCREMENT      0x0004
+#define EVI_EDDY_CHANNEL_ANGLE_INCREMENT      0x0004
 
 /*
- * FPGA_CHANNEL_PROBE_MAG_SIN
- * FPGA_CHANNEL_PROBEMAGCOS
+ * EVI_EDDY_CHANNEL_PROBE_MAG_SIN
+ * EVI_EDDY_CHANNEL_PROBEMAGCOS
  *
  * Probe Drive, 14-bit signed numbers, 0x1fff = 0.9999.., 0x2000 = -1
  *
  * In single frequency mode then the probe drive comes from
  * the differential path.  We shift the 14-bit signed number to the left
- * 4-bits since that's what the FPGA looks at
+ * 4-bits since that's what the hardware looks at
  *
  * In two frequency mode, the probe signal is made up of the sum of the
  * probe drive signals from both the differential and absolute path
@@ -49,172 +49,172 @@
  * Care needs to be taken that the combination of ProbeMag X and Y
  * does not have amplitude greater that MAX_DAC_OUT
  */
-#define FPGA_CHANNEL_PROBE_MAG_SIN        0x0008
-#define FPGA_CHANNEL_PROBEMAGCOS          0x000C
+#define EVI_EDDY_CHANNEL_PROBE_MAG_SIN        0x0008
+#define EVI_EDDY_CHANNEL_PROBEMAGCOS          0x000C
 
 /*
- * FPGA_CHANNEL_PREDRIVES
+ * EVI_EDDY_CHANNEL_PREDRIVES
  *
  * bits  7: 0 - PreDrive 3
  * bits 15: 8 - PreDrive 2
  * bits 23:16 - PreDrive 1
  * bits 31:24 - RECV Probe
  */
-#define FPGA_CHANNEL_PREDRIVES            0x0010
+#define EVI_EDDY_CHANNEL_PREDRIVES            0x0010
 
-#define FPGA_CHANNEL_DFTSIZE              0x0014
+#define EVI_EDDY_CHANNEL_DFTSIZE              0x0014
 
 /*
- * FPGA_CHANNEL_MACMULTIPLIER
+ * EVI_EDDY_CHANNEL_MACMULTIPLIER
  *
  * number to multiply result by to scale to 2^24 DFT
  */
-#define FPGA_CHANNEL_MACMULTIPLIER        0x0018
+#define EVI_EDDY_CHANNEL_MACMULTIPLIER        0x0018
 
 /*
- * FPGA_CHANNEL_PROBEDITHERAMPLITUDE
+ * EVI_EDDY_CHANNEL_PROBEDITHERAMPLITUDE
  *
  * amplitude of dither signal for probe
  */
-#define FPGA_CHANNEL_PROBEDITHERAMPLITUDE 0x001C
+#define EVI_EDDY_CHANNEL_PROBEDITHERAMPLITUDE 0x001C
 
 /*
- * FPGA_CHANNEL_NUMDFTSUBSETS
+ * EVI_EDDY_CHANNEL_NUMDFTSUBSETS
  *
  * number of short DFTs to use in calculation of total DFT minus one
  */
-#define FPGA_CHANNEL_NUMDFTSUBSETS        0x0020
+#define EVI_EDDY_CHANNEL_NUMDFTSUBSETS        0x0020
 
 /*
- * FPGA_CHANNEL_DFTSUBSETSIZE
+ * EVI_EDDY_CHANNEL_DFTSUBSETSIZE
  *
  * number of points in DFT subset minus one
  */
-#define FPGA_CHANNEL_DFTSUBSETSIZE        0x0024
+#define EVI_EDDY_CHANNEL_DFTSUBSETSIZE        0x0024
 
 /*
- * FPGA_CHANNEL_DFTSKIP
+ * EVI_EDDY_CHANNEL_DFTSKIP
  *
  * (This used to be 0x0050 for Pete's MUX128)
  */
-#define FPGA_CHANNEL_DFTSKIP              0x0028
+#define EVI_EDDY_CHANNEL_DFTSKIP              0x0028
 
 /*
- * FPGA_CHANNEL_INTERPOLATIONFACTOR
+ * EVI_EDDY_CHANNEL_INTERPOLATIONFACTOR
  *
  * This number depends on channel number.
  * The interpolated value is:
  *  Data[n-1] + (Data[n] - Data[n-1]) * InterpolationFactor / 2^30i
  */
-#define FPGA_CHANNEL_INTERPOLATIONFACTOR  0x002C
+#define EVI_EDDY_CHANNEL_INTERPOLATIONFACTOR  0x002C
 
 /* 0x0030 - 0x0076 padding */
 
 /*
- * FPGA_CHANNEL_IIR_COEF1
- * FPGA_CHANNEL_IIR_COEF2
+ * EVI_EDDY_CHANNEL_IIR_COEF1
+ * EVI_EDDY_CHANNEL_IIR_COEF2
  *
  * coefficients for the two-stage bi-quad IIR filter
  * 0x20 each
  */
-#define FPGA_CHANNEL_IIR_COEF1            0x0080
-#define FPGA_CHANNEL_IIR_COEF2            0x00A0
+#define EVI_EDDY_CHANNEL_IIR_COEF1            0x0080
+#define EVI_EDDY_CHANNEL_IIR_COEF2            0x00A0
 
 /*
- * FPGA_CHANNEL_GAIN
+ * EVI_EDDY_CHANNEL_GAIN
  *
  * Bit 3:0 1st stage gain
  *            0=-12db
  *            7 = 30db
  * Bit 7:4 2nd stage gain same units
  */
-#define FPGA_CHANNEL_GAIN                 0x00C0
+#define EVI_EDDY_CHANNEL_GAIN                 0x00C0
 
 /*
- * FPGA_CHANNEL_NULLMAGSIN
- * FPGA_CHANNEL_NULLMAGCOS
+ * EVI_EDDY_CHANNEL_NULLMAGSIN
+ * EVI_EDDY_CHANNEL_NULLMAGCOS
  *
  * Null Dac 1 (1st stage)
  * 18-bit signed numbers, 0x1ffff = 0.9999, 0x20000 = -1
  * Same rules as ProbeMag
  */
-#define FPGA_CHANNEL_NULLMAGSIN           0x00C4
-#define FPGA_CHANNEL_NULLMAGCOS           0x00C8
+#define EVI_EDDY_CHANNEL_NULLMAGSIN           0x00C4
+#define EVI_EDDY_CHANNEL_NULLMAGCOS           0x00C8
 
 /*
- * FPGA_CHANNEL_NULLMAGSIN2
- * FPGA_CHANNEL_NULLMAGCOS2
+ * EVI_EDDY_CHANNEL_NULLMAGSIN2
+ * EVI_EDDY_CHANNEL_NULLMAGCOS2
  *
  * Null Dac 2 (second stage)
  */
-#define FPGA_CHANNEL_NULLMAGSIN2          0x00CC
-#define FPGA_CHANNEL_NULLMAGCOS2          0x00D0
+#define EVI_EDDY_CHANNEL_NULLMAGSIN2          0x00CC
+#define EVI_EDDY_CHANNEL_NULLMAGCOS2          0x00D0
 
 /*
- * FPGA_CHANNEL_ROTMAGSIN
- * FPGA_CHANNEL_ROTMAGCOS
+ * EVI_EDDY_CHANNEL_ROTMAGSIN
+ * EVI_EDDY_CHANNEL_ROTMAGCOS
  *
  * Rotation, 32-bit number
  * 0x7fff:ffff = 1.9999..., 0x8000:0000 = -2
  * this includes the digital gain to account for values between
  * the analog gain values
  */
-#define FPGA_CHANNEL_ROTMAGSIN            0x00D4
-#define FPGA_CHANNEL_ROTMAGCOS            0x00D8
+#define EVI_EDDY_CHANNEL_ROTMAGSIN            0x00D4
+#define EVI_EDDY_CHANNEL_ROTMAGCOS            0x00D8
 
 /*
- * FPGA_CHANNEL_XSPREAD
- * FPGA_CHANNEL_YSPREAD
+ * EVI_EDDY_CHANNEL_XSPREAD
+ * EVI_EDDY_CHANNEL_YSPREAD
  *
  * spread numbers are 1-128 as 32-bit signed number
  */
-#define FPGA_CHANNEL_XSPREAD              0x00DC
-#define FPGA_CHANNEL_YSPREAD              0x00E0
+#define EVI_EDDY_CHANNEL_XSPREAD              0x00DC
+#define EVI_EDDY_CHANNEL_YSPREAD              0x00E0
 
-#define FPGA_CHANNEL_XNULLOFFSET          0x00E4
-#define FPGA_CHANNEL_YNULLOFFSET          0x00E8
+#define EVI_EDDY_CHANNEL_XNULLOFFSET          0x00E4
+#define EVI_EDDY_CHANNEL_YNULLOFFSET          0x00E8
 
 /*
- * FPGA_CHANNEL_DITHERAMPLITUDE
+ * EVI_EDDY_CHANNEL_DITHERAMPLITUDE
  *
  * amplitude of dither signal , same units as NullStage
  */
-#define FPGA_CHANNEL_DITHERAMPLITUDE 0x00EC
+#define EVI_EDDY_CHANNEL_DITHERAMPLITUDE 0x00EC
 
 /*
- * FPGA_CHANNEL_DITHERAMPLITUDE1
+ * EVI_EDDY_CHANNEL_DITHERAMPLITUDE1
  *
  * amplitude of dither signal for Null Dac 1
  */
-#define FPGA_CHANNEL_DITHERAMPLITUDE1     0x00F0
+#define EVI_EDDY_CHANNEL_DITHERAMPLITUDE1     0x00F0
 
 /* padding 0x00F4 to the end are unused to make length 0x100*/
-#define FPGA_CHANNEL_SIZE                 0x0100
+#define EVI_EDDY_CHANNEL_SIZE                 0x0100
 
 
 /***************************************************************************
- * FPGA_IIR_COEF register offsets
+ * EVI_EDDY_IIR_COEF register offsets
  *
  * Offsets from
  ***************************************************************************/
-#define FPGA_IIR_SCALE_B        0x0000 /* 4 bits (0-15) */
-#define FPGA_IIR_SCALE_L        0x0004 /* 4 bits (0-15) */
-#define FPGA_IIR_B              0x0008 /* iir b 3 registers @ 32 bits */
-#define FPGA_IIR_LR             0x0014 /* iir Lr 32 bits */
-#define FPGA_IIR_LI             0x0014 /* iir Li 32 bits */
-#define FPGA_IIR_MLI            0x001C /* iir MLi 32 bits unused at this time */
-#define FPGA_IIR_SIZE           0x0020 /* iir MLi 32 bits unused at this time */
+#define EVI_EDDY_IIR_SCALE_B        0x0000 /* 4 bits (0-15) */
+#define EVI_EDDY_IIR_SCALE_L        0x0004 /* 4 bits (0-15) */
+#define EVI_EDDY_IIR_B              0x0008 /* iir b 3 registers @ 32 bits */
+#define EVI_EDDY_IIR_LR             0x0014 /* iir Lr 32 bits */
+#define EVI_EDDY_IIR_LI             0x0014 /* iir Li 32 bits */
+#define EVI_EDDY_IIR_MLI            0x001C /* iir MLi 32 bits unused at this time */
+#define EVI_EDDY_IIR_SIZE           0x0020 /* iir MLi 32 bits unused at this time */
 
 
 /***************************************************************************
- * FPGA_MIXED_DEF
+ * EVI_EDDY_MIXED_DEF
  *
- * EVI_FPGA_EIM_FPGA_MIXED register offsets
+ * EVI_MIXED register offsets
  *
  ***************************************************************************/
 
 /*
- * FPGA_MIXED_CONTROL
+ * EVI_EDDY_MIXED_CONTROL
  *
  * MixedTimeslot Control format
  * Bits  6: 0 - Primary Timeslot index
@@ -228,13 +228,13 @@
  *               3 = reserved
  * Bits 31:18 - unused
  */
-#define FPGA_MIXED_CONTROL 0x0000
+#define EVI_EDDY_MIXED_CONTROL 0x0000
 
-#define FPGA_MIXED_ROTMAGSIN 0x0004
-#define FPGA_MIXED_ROTMAGCOS 0x0008
-#define FPGA_MIXED_XSPREAD   0x000C
-#define FPGA_MIXED_YSPREAD   0x0010
+#define EVI_EDDY_MIXED_ROTMAGSIN 0x0004
+#define EVI_EDDY_MIXED_ROTMAGCOS 0x0008
+#define EVI_EDDY_MIXED_XSPREAD   0x000C
+#define EVI_EDDY_MIXED_YSPREAD   0x0010
 /* padding 0x0014 - 0x001C */
-#define FPGA_MIXED_SIZE 0x0020
+#define EVI_EDDY_MIXED_SIZE 0x0020
 
 #endif /* EVI_EDDY_CHANNEL_H */

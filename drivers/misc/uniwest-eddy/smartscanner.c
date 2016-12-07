@@ -16,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
-#include "evi_fpga_registers.h"
+#include "evi_registers.h"
 #include "smartscanner.h"
 
 struct scanner_command {
@@ -110,8 +110,7 @@ int ef_scannerirq_probe(struct smartscanner *ss)
 		return -ENODEV;
 	}
 
-	ret = request_irq(ss->irq, ef_handle_scannerirq,
-			0, "evifpga-scanner", ss);
+	ret = request_irq(ss->irq, ef_handle_scannerirq, 0, "evi-scanner", ss);
 	if (ret)
 		dev_err(ss->dev, "Error requesting scannerirq: %d\n", ret);
 

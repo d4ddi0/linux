@@ -1,8 +1,7 @@
 /**
  * Copyright (c) 2015 United Western Technologies, Corporation
  *
- * evi-fpga collects eddy current data over weim bus
- * There is also an spi interface used to load the fpga firmware
+ * evi_eddy is a multichannel eddy current device
  *
  */
 
@@ -35,15 +34,15 @@
 #include <linux/wait.h>
 
 /* headers private to the module */
-#include "evi_fpga_registers.h"
+#include "evi_registers.h"
 #include "evi_ioctl.h"
 #include "smartscanner.h"
 
-#define DEVICE_NAME "evifpga"
+#define DEVICE_NAME "evi-eddy"
 #define SCANNER_CONNECTED (0x00010000)
 
 struct ef_device {
-	void __iomem *fpga_registers;
+	void __iomem *base;
 	uint32_t flags;
 	dev_t data_dev_num;
 	struct cdev data_cdev;
@@ -52,12 +51,11 @@ struct ef_device {
 	struct smartscanner ss;
 	u32 battbox_state;
 	struct semaphore access;
-	struct fpga_manager *fmgr;
 	const char *fw_name;
 };
 
 static struct ef_device ef_device = {
-	.fpga_registers = NULL,
+	.base = NULL,
 };
 
 static const struct of_device_id of_ef_match[] = {
@@ -72,26 +70,12 @@ static const int ef_minor;
 static struct class *ef_class;
 static struct work_struct ef_status_work;
 
-static inline u32 read_weim(const volatile void __iomem *addr)
-{
-	uint32_t value;
-
-	value = readl_relaxed(addr);
-
-	return value;
-}
-
-static inline void write_weim(u32 b, volatile void __iomem *addr)
-{
-	writel_relaxed(b, addr);
-}
-
 void ef_update_status(struct work_struct *work)
 {
 	struct ef_device *evi = &ef_device;
 	uint32_t status, changes;
 
-	status = readl_relaxed(evi->fpga_registers + EVI_FPGA_EIM_BATTBOXRECV);
+	status = readl_relaxed(evi->base + EVI_BATTBOXRECV);
 	changes = status ^ evi->battbox_state;
 	evi->battbox_state = status;
 
@@ -100,8 +84,8 @@ void ef_update_status(struct work_struct *work)
 
 	if (status & (1 << 31)) {
 		msleep(100);
-		status = readl_relaxed(evi->fpga_registers +
-					EVI_FPGA_EIM_BATTBOXRECV);
+		status = readl_relaxed(evi->base +
+					EVI_BATTBOXRECV);
 		if (status & (1 << 31)) {
 			evi->ss.msg = 0x00ff0000;
 			evi->flags |= SCANNER_CONNECTED;
@@ -113,8 +97,8 @@ void ef_update_status(struct work_struct *work)
 		evi->flags = 0;
 		evi->ss.connected = false;
 		for (i = 0; i < 8; i++) {
-			readl_relaxed(evi->fpga_registers +
-				      EVI_FPGA_EIM_SCANNERRECV);
+			readl_relaxed(evi->base +
+				      EVI_SCANNERRECV);
 		}
 	}
 }
@@ -136,7 +120,7 @@ int ef_statusirq_probe(struct ef_device *evi)
 	}
 
 	ret = request_irq(evi->statusirq, ef_handle_statusirq,
-			0, "evifpga-status", evi);
+			0, "evi-eddy-status", evi);
 	if (ret) {
 		dev_err(evi->dev, "Error requesting statusirq: %d\n", ret);
 		return ret;
@@ -190,19 +174,13 @@ void evi_read_data(void *dest, size_t len, void __iomem *src)
 	barrier();
 }
 
-/*
- * ef_start_data_flow()
- *
- * Assumes that interrupts are enabled and that FPGA is running
- * and that the interrupt state is FPGA_INTERRUPT_IDLE
- */
 static long ef_start_data_flow(struct ef_device *evi)
 {
 	char buf[64];
 
-	/* read FPGA_DATA_DIFF_X to clear the irq line */
+	/* read DIFF_X to clear the irq line */
 	evi_read_data(buf, sizeof(buf),
-			ef_device.fpga_registers + EVI_FPGA_EIM_DATABUF);
+			ef_device.base + EVI_DATABUF);
 	return 0;
 }
 
@@ -211,23 +189,23 @@ static long ef_stop_data_flow(struct ef_device *evi)
 	return 0;
 }
 
-static long ef_start_fpga(struct ef_device *evi)
+static long ef_start_hw(struct ef_device *evi)
 {
-	write_weim(0, evi->fpga_registers + EVI_FPGA_EIM_STARTPROCESSING);
+	writel_relaxed(0, evi->base + EVI_STARTPROCESSING);
 	return 0;
 }
 
-static long ef_stop_fpga(struct ef_device *evi)
+static long ef_stop_hw(struct ef_device *evi)
 {
 	int i;
 
-	write_weim(0, evi->fpga_registers + EVI_FPGA_EIM_STOPPROCESSING);
+	writel_relaxed(0, evi->base + EVI_STOPPROCESSING);
 
 	for (i = 0; i < 20; i++) {
 		union ef_fifo_status status;
 
-		status.raw_data = read_weim(evi->fpga_registers +
-				EVI_FPGA_EIM_FIFO_STATUS);
+		status.raw_data = readl_relaxed(evi->base +
+				EVI_FIFO_STATUS);
 
 		if (status.stopped)
 			return 0;
@@ -235,7 +213,7 @@ static long ef_stop_fpga(struct ef_device *evi)
 		msleep(50);
 	}
 
-	dev_err(evi->dev, "Timed out waiting for the FPGA to STOP\n");
+	dev_err(evi->dev, "Timed out waiting for the HW to STOP\n");
 	return -EAGAIN;
 }
 
@@ -248,30 +226,30 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 		return -ERESTARTSYS;
 
 	switch (command) {
-	case EVI_FPGA_VERSION:
+	case EVI_EDDY_VERSION:
 		ret = copy_to_user((char *)arg, UTS_RELEASE,
 				    strlen(UTS_RELEASE));
 		break;
-	case EVI_FPGA_START_DATA_FLOW:
+	case EVI_EDDY_START_DATA_FLOW:
 		ret = ef_start_data_flow(evi);
 		break;
-	case EVI_FPGA_STOP_DATA_FLOW:
+	case EVI_EDDY_STOP_DATA_FLOW:
 		ret = ef_stop_data_flow(evi);
 		break;
-	case  EVI_FPGA_START_FPGA:
-		ret = ef_start_fpga(evi);
+	case  EVI_EDDY_START_HW:
+		ret = ef_start_hw(evi);
 		break;
-	case EVI_FPGA_STOP_FPGA:
-		ret = ef_stop_fpga(evi);
+	case EVI_EDDY_STOP_HW:
+		ret = ef_stop_hw(evi);
 		break;
-	case EVI_FPGA_SCANNER_STATUS:
+	case EVI_EDDY_SCANNER_STATUS:
 		ret = copy_to_user((char *)arg, &evi->flags,
 				   sizeof(evi->flags));
 		break;
-	case EVI_FPGA_SCANNER_CMD:
+	case EVI_EDDY_SCANNER_CMD:
 		ret = scanner_cmd(&evi->ss, (void *)arg);
 		break;
-	case EVI_FPGA_SCANNER_FIRMWARE:
+	case EVI_EDDY_SCANNER_FIRMWARE:
 		ret = ef_load_scanner_firmware(&evi->ss, (char *)arg);
 		break;
 	default:
@@ -287,7 +265,7 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 
 static int ef_release(struct inode *inode, struct file *filp)
 {
-	ef_stop_fpga(&ef_device);
+	ef_stop_hw(&ef_device);
 	dev_dbg(ef_device.dev, "EVi read device closed\n");
 	return 0;
 }
@@ -305,7 +283,7 @@ static struct vm_operations_struct ef_mmap_vm_ops = {
 	.close              = ef_vma_close,
 };
 
-static int ef_mmap_eim(struct file *filp, struct vm_area_struct *vma)
+static int ef_mmap_hw(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret;
 	size_t size = vma->vm_end - vma->vm_start;
@@ -319,10 +297,10 @@ static int ef_mmap_eim(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	if (size <= resource_size(&res)) {
-		dev_err(evi->dev, "request EIM map 0x%x of 0x%zx bytes\n",
+		dev_info(evi->dev, "request mmap 0x%x of 0x%zx bytes\n",
 			size, resource_size(&res));
 	} else {
-		dev_err(evi->dev, "Error: EIM mmap %zx cannot exceed 0x%zx\n",
+		dev_err(evi->dev, "Error: mmap %zx cannot exceed 0x%zx\n",
 			size, resource_size(&res));
 		return -EINVAL;
 	}
@@ -332,7 +310,7 @@ static int ef_mmap_eim(struct file *filp, struct vm_area_struct *vma)
 	ret = io_remap_pfn_range(vma, vma->vm_start, res.start >> PAGE_SHIFT,
 			size, vma->vm_page_prot);
 	if (ret) {
-		dev_err(evi->dev, "io_remap_pfn_range EIM failed: %d\n", ret);
+		dev_err(evi->dev, "io_remap_pfn_range failed: %d\n", ret);
 		return ret;
 	}
 
@@ -351,8 +329,8 @@ static int ef_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP | VM_LOCKED;
 
 	switch (vma->vm_pgoff << PAGE_SHIFT) {
-	case FPGA_VM_EIM_OFFSET:
-		ret = ef_mmap_eim(filp, vma);
+	case 0:
+		ret = ef_mmap_hw(filp, vma);
 		break;
 
 	default:
@@ -394,7 +372,7 @@ static int init_character_device(struct ef_device *evi)
 	}
 
 	evi->data_dev_num = MKDEV(ef_major, ef_minor);
-	ret_val = register_chrdev_region(evi->data_dev_num, 1, "EViFPGA");
+	ret_val = register_chrdev_region(evi->data_dev_num, 1, DEVICE_NAME);
 	if (ret_val < 0) {
 		dev_err(evi->dev, "Error registering character device\n");
 		goto evi_char_init_reg_region;
@@ -441,7 +419,7 @@ static void ef_free_char_devices(struct ef_device *evi)
 	class_destroy(ef_class);
 }
 
-static int ef_eim_map(struct platform_device *pdev)
+static int ef_hw_map(struct platform_device *pdev)
 {
 	struct resource res;
 	struct ef_device *evi = &ef_device;
@@ -455,9 +433,9 @@ static int ef_eim_map(struct platform_device *pdev)
 	}
 
 	/* devm_ioremap_resource automatically unmaps as the device is freed */
-	evi->fpga_registers = devm_ioremap_resource(&pdev->dev, &res);
+	evi->base = devm_ioremap_resource(&pdev->dev, &res);
 
-	ef_ver = read_weim(evi->fpga_registers + EVI_FPGA_EIM_VERSION);
+	ef_ver = readl_relaxed(evi->base + EVI_VERSION);
 	dev_notice(evi->dev, "evi eddy device version: %08X\r\n", ef_ver);
 	if (ef_ver == 0xffffffff || ef_ver == 0) {
 		dev_err(&pdev->dev, "HW Version invalid!\n");
@@ -465,12 +443,12 @@ static int ef_eim_map(struct platform_device *pdev)
 	}
 
 	evi->ss.dev = evi->dev;
-	evi->ss.status = evi->fpga_registers + EVI_FPGA_EIM_STATUS;
-	evi->ss.base = evi->fpga_registers + EVI_FPGA_EIM_SCANNERSEND;
+	evi->ss.status = evi->base + EVI_STATUS;
+	evi->ss.base = evi->base + EVI_SCANNERSEND;
 	evi->ss.user_flags = &(evi->flags);
-	if (IS_ERR(evi->fpga_registers)) {
-		ret = PTR_ERR(evi->fpga_registers);
-		dev_err(evi->dev, "Could not map eim: %d\n", ret);
+	if (IS_ERR(evi->base)) {
+		ret = PTR_ERR(evi->base);
+		dev_err(evi->dev, "Could not map hw: %d\n", ret);
 	}
 
 	return ret;
@@ -493,13 +471,13 @@ static int of_ef_probe(struct platform_device *pdev)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = ef_eim_map(pdev);
+	ret_val = ef_hw_map(pdev);
 	if (ret_val)
-		goto ef_weim_chardev_remove;
+		goto ef_hw_chardev_remove;
 
 	ret_val = ef_scannerirq_probe(&evi->ss);
 	if (ret_val)
-		goto ef_weim_chardev_remove;
+		goto ef_hw_chardev_remove;
 
 	ret_val = ef_statusirq_probe(evi);
 	if (ret_val)
@@ -509,7 +487,7 @@ static int of_ef_probe(struct platform_device *pdev)
 
 out_ss_irq:
 	ef_scannerirq_remove(&evi->ss);
-ef_weim_chardev_remove:
+ef_hw_chardev_remove:
 	ef_free_char_devices(&ef_device);
 
 	return ret_val;
@@ -529,7 +507,7 @@ static int of_ef_remove(struct platform_device *pdev)
 
 static struct platform_driver of_ef_driver = {
 	.driver = {
-		.name = "evi-eddy",
+		.name = DEVICE_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_ef_match,
 	},
