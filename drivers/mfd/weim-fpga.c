@@ -21,10 +21,6 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#define EVI_FPGA_EIM_BUILDDATE		0x10018
-#define EVI_FPGA_EIM_VERSION		0x10020
-#define EVI_FPGA_EIM_BATTBOXRECV	0x10704
-
 struct eeim {
 	struct device *dev;
 	struct fpga_manager *fmgr;

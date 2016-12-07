@@ -1,35 +1,23 @@
 /***************************************************************************
- * evi_fpga_registers
+ * evi_registers.h
  *
- * Offsets of fpga registers via the evi EIM bus interface
- *
- * Base hardware address is 0x08000000
- *
- * Example to read EVI_FPGA_EIM_BATTBOXRECV:
- * /unit_tests/memtool 08010704 1
- *
- * Example to write 0x10 EVI_FPGA_EIM_BATTBOXSEND:
- * /unit_tests/memtool 08010700=10
+ * Offsets of memory mapped registers in the EVI_EDDY hardware
  *
  ***************************************************************************/
-#ifndef EVI_FPGA_REGISTERS_H
-#define EVI_FPGA_REGISTERS_H
-
-/***************************************************************************
- * EVI_FPGA_EIM address offsets
- ***************************************************************************/
+#ifndef EVI_REGISTERS_H
+#define EVI_REGISTERS_H
 
 /*
- * EVI_FPGA_EIM_TIMESLOTS
+ * EVI_TIMESLOTS
  *
  * There are 128 Timeslots
- * Each FPGA_TIMESLOT_DEF has a diff and abs channel 0x100 bytes each
+ * Each TIMESLOT has a diff and abs channel 0x100 bytes each
  * Total size 0x10000 bytes
  */
-#define EVI_FPGA_EIM_TIMESLOTS 0x00000
+#define EVI_TIMESLOTS 0x00000
 
 /*
- * EVI_FPGA_EIM_CONTROLREG
+ * EVI_CONTROLREG
  *
  * Bits  6: 0  - Index into table of frequencies, or max frequency to use
  * Bit      7  - 1 = use specified index only,
@@ -78,15 +66,15 @@
  *               1 = don't use filter
  * Bit     31  - 1 to Use the data FIFO interrupt; defaults to 0
  */
-#define EVI_FPGA_EIM_CONTROLREG 0x10000
+#define EVI_CONTROLREG 0x10000
 /* define unused  0x10004 */
-#define EVI_FPGA_EIM_STARTPROCESSING 0x10008
+#define EVI_STARTPROCESSING 0x10008
 /* Write anything here to start processing */
-#define EVI_FPGA_EIM_STOPPROCESSING 0x1000C
+#define EVI_STOPPROCESSING 0x1000C
 /* Write anything here to stop processing */
 
 /*
- * EVI_FPGA_EIM_STATUS:  read here to determine status
+ * EVI_STATUS:  read here to determine status
  *
  * Bits  3: 0 - UART RX error count. (Rolls from 15 to 0)
  * Bits  6: 4 - Scanner fifo count
@@ -114,10 +102,10 @@ union ef_status {
 		uint32_t unused1 :17;
 	};
 };
-#define EVI_FPGA_EIM_STATUS 0x10010
+#define EVI_STATUS 0x10010
 
 /*
- * EVI_FPGA_EIM_ALARMAUDIOCONTROL
+ * EVI_AUDIOCONTROL
  *
  * Buzzer alarm Frequency and PWM (level) settings
  * Bits 31:16 - Frequency Control.  Sets Frequency as follows:
@@ -130,25 +118,25 @@ union ef_status {
  *              Current operation: the signal starts high and goes low
  *              when this setting is the count value.
  */
-#define EVI_FPGA_EIM_ALARMAUDIOCONTROL 0x10014
+#define EVI_AUDIOCONTROL 0x10014
 
 /*
- * EVI_FPGA_EIM_BuildDate
+ * EVI_BuildDate
  *
  * Time in seconds since the beginning of the POSIX epoch
  * 64 bits wide
  */
-#define EVI_FPGA_EIM_BUILDDATE 0x10018
+#define EVI_BUILDDATE 0x10018
 
 /*
- * EVI_FPGA_EIM_VERSION
+ * EVI_VERSION
  *
  * when displayed in hex, this is 4 parts of the version, 2 digits per part
  */
-#define EVI_FPGA_EIM_VERSION 0x10020
+#define EVI_VERSION 0x10020
 
 /*
- * EVI_FPGA_EIM_ANALOGOUTCONTROL
+ * EVI_ANALOGOUTCONTROL
  *
  * AnalogOutControl format
  * Bits  6: 0 - Primary Timeslot index
@@ -173,19 +161,19 @@ union ef_status {
  *              otherwise:XY Output sent for this block (0-3)
  * Bits 31:18 - unused
  */
-#define EVI_FPGA_EIM_ANALOGOUTCONTROL 0x10024
+#define EVI_ANALOGOUTCONTROL 0x10024
 
 /*
- * EVI_FPGA_EIM_NULLDACOFFSET
+ * EVI_NULLDACOFFSET
  * This value is added to the NullDac signal for all time-slots
  * It is a 24-bit number.  Only the most significant 14 bits of the
  * 24-bit number are actually sent to the DAC
  */
-#define EVI_FPGA_EIM_NULLDACOFFSET 0x10034
+#define EVI_NULLDACOFFSET 0x10034
 
 
 /*
- * EVI_FPGA_EIM_ALARMOUT
+ * EVI_ALARM_ENABLE
  *
  * AlarmOut definitions
  * Bit     0 = Alarm Common Out
@@ -200,23 +188,23 @@ union ef_status {
  * Bit     14 = Alarm 7 Out, 1 = alarm, 0 = no alarm
  * Bit     15 = Alarm 8 Out, 1 = alarm, 0 = no alarm
  */
-#define EVI_FPGA_EIM_ALARMOUT 0x10044
+#define EVI_ALARM_ENABLE 0x10044
 
-#define FPGA_REG_ALARM_OUT_OR_BIT   (1 << 0)
-#define FPGA_REG_ALARM_OUT_SND_BIT  (1 << 1)
-#define FPGA_REG_ALARM_OUT_SHIFT    (8)
-#define FPGA_REG_ALARM_OUT_ALARM_1  (1 << FPGA_REG_ALARM_OUT_SHIFT)
-#define FPGA_REG_ALARM_OUT_ALARM_2  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 1))
-#define FPGA_REG_ALARM_OUT_ALARM_3  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 2))
-#define FPGA_REG_ALARM_OUT_ALARM_4  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 3))
-#define FPGA_REG_ALARM_OUT_ALARM_5  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 4))
-#define FPGA_REG_ALARM_OUT_ALARM_6  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 5))
-#define FPGA_REG_ALARM_OUT_ALARM_7  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 6))
-#define FPGA_REG_ALARM_OUT_ALARM_8  (1 << (FPGA_REG_ALARM_OUT_SHIFT + 7))
-#define FPGA_REG_ALARM_OUT_BIT(bit) (1 << (FPGA_REG_ALARM_OUT_SHIFT + (bit)))
+#define EVI_ALARM_OUT_OR_BIT   (1 << 0)
+#define EVI_ALARM_OUT_SND_BIT  (1 << 1)
+#define EVI_ALARM_OUT_SHIFT    (8)
+#define EVI_ALARM_OUT_ALARM_1  (1 << EVI_ALARM_OUT_SHIFT)
+#define EVI_ALARM_OUT_ALARM_2  (1 << (EVI_ALARM_OUT_SHIFT + 1))
+#define EVI_ALARM_OUT_ALARM_3  (1 << (EVI_ALARM_OUT_SHIFT + 2))
+#define EVI_ALARM_OUT_ALARM_4  (1 << (EVI_ALARM_OUT_SHIFT + 3))
+#define EVI_ALARM_OUT_ALARM_5  (1 << (EVI_ALARM_OUT_SHIFT + 4))
+#define EVI_ALARM_OUT_ALARM_6  (1 << (EVI_ALARM_OUT_SHIFT + 5))
+#define EVI_ALARM_OUT_ALARM_7  (1 << (EVI_ALARM_OUT_SHIFT + 6))
+#define EVI_ALARM_OUT_ALARM_8  (1 << (EVI_ALARM_OUT_SHIFT + 7))
+#define EVI_ALARM_OUT_BIT(bit) (1 << (EVI_ALARM_OUT_SHIFT + (bit)))
 
 /*
- * EVI_FPGA_EIM_ENCODERCONTROL
+ * EVI_ENCODERCONTROL
  *
  * LSByte is Encoder 0, MSByte is Encoder 3
  *
@@ -232,25 +220,25 @@ union ef_status {
  * Bit   2 - Pulse on position input operates counter in up mode
  * Bit   3 - Clear Encoder register (write only), write unused bits to zero.
  */
-#define EVI_FPGA_EIM_ENCODERCONTROL 0x10048
+#define EVI_ENCODERCONTROL 0x10048
 
 /*
- * EVI_FPGA_EIM_ENCODERTERMINALCOUNT
+ * EVI_ENCODERTERMINALCOUNT
  *
  * Terminal Count is 1 less than number of counts per revolution
  * or encoders  in rotational mode
  */
-#define EVI_FPGA_EIM_ENCODERTERMINALCOUNT 0x1004C
+#define EVI_ENCODERTERMINALCOUNT 0x1004C
 
 /*
- * EVI_FPGA_EIM_SYNCDEBOUNCE
+ * EVI_SYNCDEBOUNCE
  *
  * number of 100MHz clocks
  */
-#define EVI_FPGA_EIM_SYNCDEBOUNCE 0x1005C
+#define EVI_SYNCDEBOUNCE 0x1005C
 
 /*
- * EVI_FPGA_EIM_STATICAUXOUT
+ * EVI_STATICAUXOUT
  *
  * static outputs,
  * Bits 0-4 = data bits(D1-D5),
@@ -258,19 +246,19 @@ union ef_status {
  * StaticAuxOut stores bits to send out to STROBE and D1-D5 if the
  * control register has the MuxOutMode bit is set to 1
  */
-#define EVI_FPGA_EIM_STATICAUXOUT 0x10060
+#define EVI_STATICAUXOUT 0x10060
 
 /*
- * EVI_FPGA_EIM_FIFO_STATUS
+ * EVI_FIFO_STATUS
  *
- * Status information regarding the FPGA Data FIFO
+ * Status information regarding the eddy Data FIFO
  *
  * Bits  11:0 fifo_count:  number of 32 bit data in the fifo
  * Bit     12 empty:       fifo is empty
  * Bit     13 almost_full: fifo has reached almost_full
  * Bit     14 full:        fifo is completely full
  * Bit     15 word_zeroes: an all zeroes word encountered
- * Bit     16 stopped:     fpga cores stopped. 0 if running.
+ * Bit     16 stopped:     cores stopped. 0 if running.
  * Bit     17 int0:        reflects the value of the data interrupt
  * Bit     18 int1:        reflects the value of the scanner interrupt
  * Bits 19:31 unused
@@ -290,42 +278,42 @@ union ef_fifo_status {
 		uint32_t unused :13;
 	};
 };
-#define EVI_FPGA_EIM_FIFO_STATUS 0x10064
+#define EVI_FIFO_STATUS 0x10064
 
 /*
- * EVI_FPGA_EIM_FPGA_MIXED_CHANNELS
+ * EVI_MIXED_CHANNELS
  *
  * 16 mixed locations were set aside. not all are expected to be used
- * Each FPGA_MIXED_DEF is 32 bytes, 8 (4-byte) longs or 0x20 bytes
+ * Each MIXED_DEF is 32 bytes, 8 (4-byte) longs or 0x20 bytes
  */
-#define EVI_FPGA_EIM_FPGA_MIXED_CHANNELS 0x10200
+#define EVI_MIXED_CHANNELS 0x10200
 
 /*
- * EVI_FPGA_EIM_MULTI_IO_INPUTCONTROL
+ * EVI_MULTI_IO_INPUTCONTROL
  *
  * Need to define. For Alpha, keep it simple
  * Bit 0: Encoder select-- 0: Encoders 2,3 from Multi_IO inputs 3:0
- *                         1: Encoders 2,3 FPGA pins
+ *                         1: Encoders 2,3 pins
  */
-#define EVI_FPGA_EIM_MULTI_IO_INPUTCONTROL 0x10400
+#define EVI_MULTI_IO_INPUTCONTROL 0x10400
 
 /*
- * EVI_FPGA_EIM_MULTI_IO_OUTPUTCONTROL
+ * EVI_MULTI_IO_OUTPUTCONTROL
  * Uses bits 3:0 ignores high bits
  *      0x0:       Multi_IO out = Software controlled register (slow alarm)
  *      0x1:       Multi_IO out = 128 Mux selection
  *      0x2:       Multi_IO out = Slow Mux selection
  *      0x3:       Multi_IO out = Test Pattern - 0xAA
  *      0x4:       Multi_IO out = Test Pattern - 0x55
- *      0x5:       Multi_IO out = FPGA Alarm Output
+ *      0x5:       Multi_IO out = Eddy Current Alarm Output
  *      otherwise: Multi_IO out = Software controlled register (slow alarm)
  */
-#define EVI_FPGA_EIM_MULTI_IO_OUTPUTCONTROL 0x10404
+#define EVI_MULTI_IO_OUTPUTCONTROL 0x10404
 
 /*
- * EVI_FPGA_EIM_MULTI_IO_REFERENCE
+ * EVI_MULTI_IO_REFERENCE
  *
- * Default set by FPGA on power-on reset: 16'h2A90 to set both outputs at +3.3V
+ * Default set on power-on reset: 16'h2A90 to set both outputs at +3.3V
  * Bits 15: 0 - Multi_IO voltage reference DAC Control. Used to set
  *              Multi_IO output voltage reference (Ref DAC A)
  *              Multi_IO input voltage reference  (Ref DAC B)
@@ -344,22 +332,22 @@ union ef_fifo_status {
  *              Set DAC B to 0 Volts: 0x1000
  *              Set both DACS to 3.3 Volts: 0x2A90
  */
-#define EVI_FPGA_EIM_MULTI_IO_REFERENCE 0x10408
+#define EVI_MULTI_IO_REFERENCE 0x10408
 
 /*
- * EVI_FPGA_EIM_ADC_CONTROL
+ * EVI_ADC_CONTROL
  *
- * Default set by FPGA on power-on reset: 16'h0080 to reset the ADC
+ * Default set on power-on reset: 16'h0080 to reset the ADC
  * Bits 15: 0 - Control Address/Data for ADC setup. (see ADC documentation)
  * Bits 15: 8 - Address
  * Bits  7: 0 - Data
  */
-#define EVI_FPGA_EIM_ADC_CONTROL 0x1040C
+#define EVI_ADC_CONTROL 0x1040C
 
 /*
- * EVI_FPGA_EIM_XY_DAC_CNTL
+ * EVI_XY_DAC_CNTL
  *
- * Default set by FPGA on power-on reset
+ * Default set on power-on reset
  * Bits 31:20   Not used
  * Bit     19-  DAC rate control (BCLK and LRCLK frequencies)
  *              0         50 kHz (default)
@@ -373,7 +361,7 @@ union ef_fifo_status {
  * Bits 15: 8 - Address
  * Bits  7: 0 - Data
  */
-#define EVI_FPGA_EIM_XY_DAC_CNTL 0x10410
+#define EVI_XY_DAC_CNTL 0x10410
 
 
 /*
@@ -382,9 +370,9 @@ union ef_fifo_status {
  * Bits 31:24   In ramp mode, the number of steps before
  *              complementing the add/subtract mode
  */
-#define EVI_FPGA_TEST_WORD 0x10414
+#define EVI_TEST_WORD 0x10414
 
-#define EVI_FPGA_EIM_STORE_SAMPLES 0x10418
+#define EVI_STORE_SAMPLES 0x10418
 /* Bits  12:0   Stop address for raw sample storage (size - 1).
  *              Max value 8191 (0x1FFF) for 8192 sample size
  * Bit     16   1: Turn on storage mode  0: Disable storage mode
@@ -415,18 +403,18 @@ union ef_fifo_status {
 /*
  * Scanner communication registers
  *
- * EVI_FPGA_EIM_SCANNERSEND sends 4 bytes to the Scanner UART
- * EVI_FPGA_EIM_SCANNERRECV holds messages from the Scanner UART
+ * EVI_SCANNERSEND sends 4 bytes to the Scanner UART
+ * EVI_SCANNERRECV holds messages from the Scanner UART
  * This register is buffered by an 8 stage FIFO.
- * EVI_FPGA_EIM_SCANNER_FIFO_IN holds the message most recently
+ * EVI_SCANNER_FIFO_IN holds the message most recently
  * inserted into the FIFO for debugging
  */
-#define EVI_FPGA_EIM_SCANNERSEND 0x10500
-#define EVI_FPGA_EIM_SCANNERRECV 0x10600
-#define EVI_FPGA_EIM_SCANNER_FIFO_IN 0x10604
+#define EVI_SCANNERSEND 0x10500
+#define EVI_SCANNERRECV 0x10600
+#define EVI_SCANNER_FIFO_IN 0x10604
 
 /*
- * EVI_FPGA_EIM_BATTBOXSEND
+ * EVI_BATTBOXSEND
  *
  * Send bits to battery box interface
  *
@@ -441,10 +429,10 @@ union ef_fifo_status {
  * Bits 23:08 - Unused
  * Bits  7: 0 - Battery box output
  */
-#define EVI_FPGA_EIM_BATTBOXSEND 0x10700
+#define EVI_BATTBOXSEND 0x10700
 
 /*
- * EVI_FPGA_EIM_BATTBOXRECV
+ * EVI_BATTBOXRECV
  *
  * 32 bit word from the Battery Box interface
  *
@@ -454,10 +442,10 @@ union ef_fifo_status {
  * write lines that are enabled Reading this word clears the associated
  * interrupt with a CTS status change
  */
-#define EVI_FPGA_EIM_BATTBOXRECV 0x10704
+#define EVI_BATTBOXRECV 0x10704
 
 /*
- * EVI_FPGA_EIM_DATA_FIFO
+ * EVI_DATA_FIFO
  *
  * 32 bit fifo containing up to 25 data points
  * each data point consists of 10
@@ -474,14 +462,14 @@ union ef_fifo_status {
  * CHANNEL 1 X
  * CHANNEL 1 Y
  */
-#define EVI_FPGA_EIM_FIFO 0x11000
+#define EVI_FIFO 0x11000
 
 /* align next field on 0x12000 boundary */
-#define EVI_FPGA_EIM_DATABUF 0x12000
+#define EVI_DATABUF 0x12000
 
 /* Fast Alarm registers */
 /*
- * EVI_FPGA_EIM_ALARM_STATE
+ * EVI_ALARM_STATE
  *
  * Configure Multi-io alarm interface
  *
@@ -499,41 +487,41 @@ union ef_alarm_status {
 		uint8_t unused;
 	};
 };
-#define EVI_FPGA_EIM_ALARM_STATE   0x10430
+#define EVI_ALARM_STATE   0x10430
 
 /*
- * EVI_FPGA_EIM_ALARM_DURATION
+ * EVI_ALARM_DURATION
  *
  * Configure Hold Duration for Multi-IO outputs
  *
  * 32-bit register, sets time in 1/4 ms increments
  */
 
-#define EVI_FPGA_EIM_ALARM_DURATION_0 0x10440
-#define EVI_FPGA_EIM_ALARM_DURATION_1 0x10444
-#define EVI_FPGA_EIM_ALARM_DURATION_2 0x10448
-#define EVI_FPGA_EIM_ALARM_DURATION_3 0x1044C
-#define EVI_FPGA_EIM_ALARM_DURATION_4 0x10450
-#define EVI_FPGA_EIM_ALARM_DURATION_5 0x10454
-#define EVI_FPGA_EIM_ALARM_DURATION_6 0x10458
-#define EVI_FPGA_EIM_ALARM_DURATION_7 0x1045C
+#define EVI_ALARM_DURATION_0 0x10440
+#define EVI_ALARM_DURATION_1 0x10444
+#define EVI_ALARM_DURATION_2 0x10448
+#define EVI_ALARM_DURATION_3 0x1044C
+#define EVI_ALARM_DURATION_4 0x10450
+#define EVI_ALARM_DURATION_5 0x10454
+#define EVI_ALARM_DURATION_6 0x10458
+#define EVI_ALARM_DURATION_7 0x1045C
 
 /*
- * EVI_FPGA_EIM_ALARM_DELAY
+ * EVI_ALARM_DELAY
  *
  * Configure Hold Delay for Multi-IO outputs
  *
  * 32-bit register, sets time in 1/4 ms increments
  */
 
-#define EVI_FPGA_EIM_ALARM_DELAY_0    0x10460
-#define EVI_FPGA_EIM_ALARM_DELAY_1    0x10464
-#define EVI_FPGA_EIM_ALARM_DELAY_2    0x10468
-#define EVI_FPGA_EIM_ALARM_DELAY_3    0x1046C
-#define EVI_FPGA_EIM_ALARM_DELAY_4    0x10470
-#define EVI_FPGA_EIM_ALARM_DELAY_5    0x10474
-#define EVI_FPGA_EIM_ALARM_DELAY_6    0x10478
-#define EVI_FPGA_EIM_ALARM_DELAY_7    0x1047C
+#define EVI_ALARM_DELAY_0    0x10460
+#define EVI_ALARM_DELAY_1    0x10464
+#define EVI_ALARM_DELAY_2    0x10468
+#define EVI_ALARM_DELAY_3    0x1046C
+#define EVI_ALARM_DELAY_4    0x10470
+#define EVI_ALARM_DELAY_5    0x10474
+#define EVI_ALARM_DELAY_6    0x10478
+#define EVI_ALARM_DELAY_7    0x1047C
 
 /*
  * Alarm Register Addressing
@@ -544,7 +532,7 @@ union ef_alarm_status {
  * Bits 08:02 - Register Select
  *
  */
-#define EVI_FPGA_EIM_ALARM_BASE    0x20000
+#define EVI_ALARM_BASE    0x20000
 
 /*
  * Circular alarm limit and center registers
@@ -552,19 +540,19 @@ union ef_alarm_status {
  * LIM (limit) registers are 32 bit
  * CTR (center) registers are 16 bit
  */
-#define EVI_FPGA_EIM_AL_CIR_X_LIM  0x0
-#define EVI_FPGA_EIM_AL_CIR_Y_LIM  0x4
-#define EVI_FPGA_EIM_AL_CIR_X_CTR  0x8
-#define EVI_FPGA_EIM_AL_CIR_Y_CTR  0xC
+#define EVI_ALARM_CIR_X_LIM  0x0
+#define EVI_ALARM_CIR_Y_LIM  0x4
+#define EVI_ALARM_CIR_X_CTR  0x8
+#define EVI_ALARM_CIR_Y_CTR  0xC
 
-#define EVI_FPGA_EIM_AL_CIR_0_BASE 0x20010
-#define EVI_FPGA_EIM_AL_CIR_1_BASE 0x20020
-#define EVI_FPGA_EIM_AL_CIR_2_BASE 0x20030
-#define EVI_FPGA_EIM_AL_CIR_3_BASE 0x20040
-#define EVI_FPGA_EIM_AL_CIR_4_BASE 0x20050
-#define EVI_FPGA_EIM_AL_CIR_5_BASE 0x20060
-#define EVI_FPGA_EIM_AL_CIR_6_BASE 0x20070
-#define EVI_FPGA_EIM_AL_CIR_7_BASE 0x20080
+#define EVI_ALARM_CIR_0_BASE 0x20010
+#define EVI_ALARM_CIR_1_BASE 0x20020
+#define EVI_ALARM_CIR_2_BASE 0x20030
+#define EVI_ALARM_CIR_3_BASE 0x20040
+#define EVI_ALARM_CIR_4_BASE 0x20050
+#define EVI_ALARM_CIR_5_BASE 0x20060
+#define EVI_ALARM_CIR_6_BASE 0x20070
+#define EVI_ALARM_CIR_7_BASE 0x20080
 
 /*
  * Circular alarm Control Registers
@@ -578,14 +566,14 @@ union ef_alarm_status {
  * Bits 31:10- Unused
  */
 
-#define EVI_FPGA_EIM_AL_CIR_CTL_0  0x20090
-#define EVI_FPGA_EIM_AL_CIR_CTL_1  0x20094
-#define EVI_FPGA_EIM_AL_CIR_CTL_2  0x20098
-#define EVI_FPGA_EIM_AL_CIR_CTL_3  0x2009C
-#define EVI_FPGA_EIM_AL_CIR_CTL_4  0x200A0
-#define EVI_FPGA_EIM_AL_CIR_CTL_5  0x200A4
-#define EVI_FPGA_EIM_AL_CIR_CTL_6  0x200A8
-#define EVI_FPGA_EIM_AL_CIR_CTL_7  0x200AC
+#define EVI_ALARM_CIR_CTL_0  0x20090
+#define EVI_ALARM_CIR_CTL_1  0x20094
+#define EVI_ALARM_CIR_CTL_2  0x20098
+#define EVI_ALARM_CIR_CTL_3  0x2009C
+#define EVI_ALARM_CIR_CTL_4  0x200A0
+#define EVI_ALARM_CIR_CTL_5  0x200A4
+#define EVI_ALARM_CIR_CTL_6  0x200A8
+#define EVI_ALARM_CIR_CTL_7  0x200AC
 
 /*
  * Rectangular alarm limit registers
@@ -593,19 +581,19 @@ union ef_alarm_status {
  * Registers are 32 bit, Comparing against 24 bit value
  *
  */
-#define EVI_FPGA_EIM_AL_RECT_X_POS  0x0
-#define EVI_FPGA_EIM_AL_RECT_X_NEG  0x4
-#define EVI_FPGA_EIM_AL_RECT_Y_POS  0x8
-#define EVI_FPGA_EIM_AL_RECT_Y_NEG  0xC
+#define EVI_ALARM_RECT_X_POS  0x0
+#define EVI_ALARM_RECT_X_NEG  0x4
+#define EVI_ALARM_RECT_Y_POS  0x8
+#define EVI_ALARM_RECT_Y_NEG  0xC
 
-#define EVI_FPGA_EIM_AL_RECT_0_BASE 0x20110
-#define EVI_FPGA_EIM_AL_RECT_1_BASE 0x20120
-#define EVI_FPGA_EIM_AL_RECT_2_BASE 0x20130
-#define EVI_FPGA_EIM_AL_RECT_3_BASE 0x20140
-#define EVI_FPGA_EIM_AL_RECT_4_BASE 0x20150
-#define EVI_FPGA_EIM_AL_RECT_5_BASE 0x20160
-#define EVI_FPGA_EIM_AL_RECT_6_BASE 0x20170
-#define EVI_FPGA_EIM_AL_RECT_7_BASE 0x20180
+#define EVI_ALARM_RECT_0_BASE 0x20110
+#define EVI_ALARM_RECT_1_BASE 0x20120
+#define EVI_ALARM_RECT_2_BASE 0x20130
+#define EVI_ALARM_RECT_3_BASE 0x20140
+#define EVI_ALARM_RECT_4_BASE 0x20150
+#define EVI_ALARM_RECT_5_BASE 0x20160
+#define EVI_ALARM_RECT_6_BASE 0x20170
+#define EVI_ALARM_RECT_7_BASE 0x20180
 
 /*
  * Rectangular alarm Control Registers
@@ -625,14 +613,14 @@ union ef_alarm_status {
  * Bits 31:10- Unused
  */
 
-#define EVI_FPGA_EIM_AL_RECT_CTL_0  0x20190
-#define EVI_FPGA_EIM_AL_RECT_CTL_1  0x20194
-#define EVI_FPGA_EIM_AL_RECT_CTL_2  0x20198
-#define EVI_FPGA_EIM_AL_RECT_CTL_3  0x2019C
-#define EVI_FPGA_EIM_AL_RECT_CTL_4  0x201A0
-#define EVI_FPGA_EIM_AL_RECT_CTL_5  0x201A4
-#define EVI_FPGA_EIM_AL_RECT_CTL_6  0x201A8
-#define EVI_FPGA_EIM_AL_RECT_CTL_7  0x201AC
+#define EVI_ALARM_RECT_CTL_0  0x20190
+#define EVI_ALARM_RECT_CTL_1  0x20194
+#define EVI_ALARM_RECT_CTL_2  0x20198
+#define EVI_ALARM_RECT_CTL_3  0x2019C
+#define EVI_ALARM_RECT_CTL_4  0x201A0
+#define EVI_ALARM_RECT_CTL_5  0x201A4
+#define EVI_ALARM_RECT_CTL_6  0x201A8
+#define EVI_ALARM_RECT_CTL_7  0x201AC
 
 /*
  * Multi-IO Output Selector/Combinational Logic
@@ -658,18 +646,18 @@ union ef_alarm_status {
  * 0xFF       - Always enabled (Outputs a 1)
  */
 
-#define EVI_FPGA_EIM_AL_OUTPUT_BANK0  0x20000
-#define EVI_FPGA_EIM_AL_OUTPUT_BANK1  0x20004
-#define EVI_FPGA_EIM_AL_AND_BANK0     0x20100
-#define EVI_FPGA_EIM_AL_AND_BANK1     0x20104
-#define EVI_FPGA_EIM_AL_OR_BANK0      0x20108
-#define EVI_FPGA_EIM_AL_OR_BANK1      0x2010C
+#define EVI_ALARM_OUTPUT_BANK0  0x20000
+#define EVI_ALARM_OUTPUT_BANK1  0x20004
+#define EVI_ALARM_AND_BANK0     0x20100
+#define EVI_ALARM_AND_BANK1     0x20104
+#define EVI_ALARM_OR_BANK0      0x20108
+#define EVI_ALARM_OR_BANK1      0x2010C
 
 
-/* EIM Bus Test Data */
-#define EVI_FPGA_EIM_TEST_0 0x30000
-#define EVI_FPGA_EIM_TEST_F 0x30004
-#define EVI_FPGA_EIM_TEST_5 0x30008
-#define EVI_FPGA_EIM_TEST_A 0x3000C
+/* Test Data */
+#define EVI_TEST_0 0x30000
+#define EVI_TEST_F 0x30004
+#define EVI_TEST_5 0x30008
+#define EVI_TEST_A 0x3000C
 
-#endif /* EVI_FPGA_REGISTERS_H */
+#endif /* EVI_REGISTERS_H */
