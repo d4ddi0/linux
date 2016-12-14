@@ -25,6 +25,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
@@ -418,6 +419,93 @@ static struct platform_driver of_ef_driver = {
 	.remove = of_ef_remove,
 };
 
+static struct pci_device_id  pci_ef_ids[] = {
+	{
+		.vendor = 0x1172,
+		.device = 0xe003,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class = 0,
+		.class_mask = 0,
+	},
+	{ 0,}
+};
+MODULE_DEVICE_TABLE(pci, pci_ef_ids);
+
+#define EVI_PCI_BAR 2
+
+static int pci_ef_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	int nvec = 3;
+	int ret;
+	struct ef_device *evi;
+
+	evi = kzalloc(sizeof(*evi), GFP_KERNEL);
+	pci_set_drvdata(pdev, evi);
+	evi->dev = &pdev->dev;
+	sema_init(&evi->access, 1);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	ret = pci_request_region(pdev, EVI_PCI_BAR, "evi_eddy_pcie");
+	if (ret)
+		goto err_out;
+
+	evi->res = &pdev->resource[EVI_PCI_BAR];
+	evi->base = pcim_iomap(pdev, EVI_PCI_BAR, resource_size(evi->res));
+	if (ret)
+		return ret;
+
+	ret = ef_hw_verify(evi);
+	if (ret)
+		return ret;
+
+	nvec = pci_alloc_irq_vectors(pdev, 1, nvec, PCI_IRQ_ALL_TYPES);
+	if (nvec < 0)
+		return nvec;
+
+	evi->ss.statusirq = pci_irq_vector(pdev, 0);
+	evi->ss.irq = pci_irq_vector(pdev, 1);
+	evi->ss.dev = evi->dev;
+	evi->ss.status = evi->base + EVI_STATUS;
+	evi->ss.base = evi->base + EVI_SCANNERSEND;
+	ret = ef_scannerirq_probe(&evi->ss);
+	if (ret)
+		return ret;
+
+	ret = init_character_device(evi);
+	if (ret)
+		return ret;
+
+	return 0;
+err_out:
+	pci_free_irq_vectors(pdev);
+	pci_disable_device(pdev);
+	iounmap(evi->base);
+	pci_release_region(pdev, 4);
+
+	return ret;
+}
+
+static void pci_ef_remove(struct pci_dev *pdev)
+{
+	struct ef_device *evi = pci_get_drvdata(pdev);
+
+	pci_free_irq_vectors(pdev);
+	pci_disable_device(pdev);
+	iounmap(evi->base);
+	pci_release_region(pdev, 4);
+}
+
+static struct pci_driver pci_ef_driver = {
+	.name = "evi-eddy-pcie",
+	.id_table = pci_ef_ids,
+	.probe = pci_ef_probe,
+	.remove = pci_ef_remove,
+};
+
 static int __init ef_init(void)
 {
 	int ret;
@@ -429,12 +517,20 @@ static int __init ef_init(void)
 		return ret;
 	}
 
+	ret = pci_register_driver(&pci_ef_driver);
+	if (ret) {
+		pr_err("Register %s failed %d:\n",
+			pci_ef_driver.driver.name, ret);
+		return ret;
+	}
+
 	return ret;
 }
 
 static void __exit ef_exit(void)
 {
 	platform_driver_unregister(&of_ef_driver);
+	pci_unregister_driver(&pci_ef_driver);
 }
 
 module_init(ef_init);
