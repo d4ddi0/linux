@@ -358,7 +358,7 @@
 	status = "okay";
 
 	weimfpga: fpga@0,0 {
-		compatible = "fsl,weim-fpga", "simple-mfd";
+		compatible = "fsl,weim-fpga";
 		reg = <0 0 0>;
 		ranges;
 		#address-cells = <2>;

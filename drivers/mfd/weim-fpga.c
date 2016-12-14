@@ -37,8 +37,11 @@ static const struct of_device_id of_eeim_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_eeim_match);
 
-static int eeim_fpga_init(struct eeim *ee)
+static int eeim_probe(struct platform_device *pdev)
 {
+	int ret;
+	const struct of_device_id *match;
+	struct eeim *ee;
 	const char * const of_fw_name = "uniwest,firmware-img";
 	const char * const of_fpga_mgr = "uniwest,fpga-mgr";
 	struct device_node *mgr_node;
@@ -46,8 +49,16 @@ static int eeim_fpga_init(struct eeim *ee)
 		.flags = FPGA_MGR_BITSTREAM_LSB_FIRST,
 	};
 
-	int ret;
+	match = of_match_device(of_eeim_match, &pdev->dev);
+	if (!match)
+		return -EINVAL;
 
+	ee = devm_kzalloc(&pdev->dev, sizeof(*ee), GFP_KERNEL);
+	if (!ee)
+		return -ENOMEM;
+
+	ee->dev = &pdev->dev;
+	platform_set_drvdata(pdev, ee);
 	ee->fw_name = of_get_property(ee->dev->of_node, of_fw_name, NULL);
 	if (!ee->fw_name) {
 		dev_err(ee->dev, "property %s not found\n", of_fw_name);
@@ -78,29 +89,8 @@ static int eeim_fpga_init(struct eeim *ee)
 	}
 
 	dev_info(ee->dev, "Loaded %s firmware\n", ee->fw_name);
-	return 0;
-}
 
-static int eeim_probe(struct platform_device *pdev)
-{
-	int ret;
-	const struct of_device_id *match;
-	struct eeim *ee;
-
-	match = of_match_device(of_eeim_match, &pdev->dev);
-	if (!match)
-		return -EINVAL;
-
-	ee = devm_kzalloc(&pdev->dev, sizeof(*ee), GFP_KERNEL);
-	if (!ee)
-		return -ENOMEM;
-
-	ee->dev = &pdev->dev;
-	platform_set_drvdata(pdev, ee);
-
-	ret = eeim_fpga_init(ee);
-	if (ret)
-		return ret;
+	of_platform_default_populate(ee->dev->of_node, NULL, ee->dev);
 
 	return 0;
 }
