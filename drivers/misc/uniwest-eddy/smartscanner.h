@@ -6,6 +6,8 @@
  *
  */
 
+#define SCANNER_CONNECTED   (0x00010000)
+
 #include <linux/io.h>
 #include <linux/compiler.h>
 #include <linux/compiler.h>
@@ -16,13 +18,12 @@ struct smartscanner {
    struct device *dev;
 	void __iomem *status;
 	void __iomem *base;
-   volatile uint32_t *user_flags;
 	unsigned int irq;
+	u32 flags;
 	u32 msg;
 	u32 last_msg;
 	wait_queue_head_t wq;
 	bool data_ready;
-	bool connected;
 };
 
 int ef_scannerirq_probe(struct smartscanner *ss);
