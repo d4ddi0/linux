@@ -41,7 +41,7 @@ static bool read_scanner(struct smartscanner *ss)
 	msg = readl_relaxed(ss->base + SS_RECV);
 	dev_dbg(ss->dev, "recvd from scanner: 0x%8.8x\n", msg);
 
-	if (!ss->connected) {
+	if (!(ss->flags & SCANNER_CONNECTED)) {
 		dev_dbg(ss->dev, "scanner not connected. discard 0x%8.8x\n",
 				msg);
 		return false;
@@ -68,9 +68,8 @@ static bool read_scanner(struct smartscanner *ss)
 		return true;
 	case 0x80:
 	case 0xC0:
-		msg &= 0xffff;
-		msg |= *ss->user_flags & 0xffff0000;
-		*ss->user_flags = msg;
+		ss->flags &= 0xffff0000;
+		ss->flags |= (msg & 0xffff);
 		break;
 	default:
 		dev_warn(ss->dev, "unhandled scanner msg: 0x%8.8x\n", msg);
@@ -222,7 +221,7 @@ long scanner_cmd(struct smartscanner *ss, void __user *arg)
 	long ret = 0;
 	struct scanner_command cmd;
 
-	if (!ss->connected)
+	if (!(ss->flags & SCANNER_CONNECTED))
 		return -ENODEV;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {

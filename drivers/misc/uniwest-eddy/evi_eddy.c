@@ -43,7 +43,6 @@
 
 struct ef_device {
 	void __iomem *base;
-	uint32_t flags;
 	dev_t data_dev_num;
 	struct cdev data_cdev;
 	struct device *dev;
@@ -88,14 +87,12 @@ void ef_update_status(struct work_struct *work)
 					EVI_BATTBOXRECV);
 		if (status & (1 << 31)) {
 			evi->ss.msg = 0x00ff0000;
-			evi->flags |= SCANNER_CONNECTED;
-			evi->ss.connected = true;
+			evi->ss.flags |= SCANNER_CONNECTED;
 		}
 	} else {
 		int i;
 
-		evi->flags = 0;
-		evi->ss.connected = false;
+		evi->ss.flags = 0;
 		for (i = 0; i < 8; i++) {
 			readl_relaxed(evi->base +
 				      EVI_SCANNERRECV);
@@ -445,7 +442,6 @@ static int ef_hw_map(struct platform_device *pdev)
 	evi->ss.dev = evi->dev;
 	evi->ss.status = evi->base + EVI_STATUS;
 	evi->ss.base = evi->base + EVI_SCANNERSEND;
-	evi->ss.user_flags = &(evi->flags);
 	if (IS_ERR(evi->base)) {
 		ret = PTR_ERR(evi->base);
 		dev_err(evi->dev, "Could not map hw: %d\n", ret);
