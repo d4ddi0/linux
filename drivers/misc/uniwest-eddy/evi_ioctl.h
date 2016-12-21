@@ -19,11 +19,6 @@ struct sample {
 	uint32_t y1;
 };
 
-struct scanner_command {
-	uint32_t command;
-	uint32_t response;
-};
-
 /* ioctls */
 #define EVI_EDDY_IOC_MAGIC 'E'
 #define EVI_EDDY_VERSION _IOR(EVI_EDDY_IOC_MAGIC, 0, char *)
@@ -31,9 +26,5 @@ struct scanner_command {
 #define EVI_EDDY_STOP_DATA_FLOW _IO(EVI_EDDY_IOC_MAGIC, 4)
 #define EVI_EDDY_START_HW _IO(EVI_EDDY_IOC_MAGIC, 5)
 #define EVI_EDDY_STOP_HW _IO(EVI_EDDY_IOC_MAGIC, 6)
-#define EVI_EDDY_SCANNER_STATUS _IOR(EVI_EDDY_IOC_MAGIC, 7, uint32_t)
-#define EVI_EDDY_SCANNER_CMD \
-	_IOWR(EVI_EDDY_IOC_MAGIC, 12, struct scanner_command)
-#define EVI_EDDY_SCANNER_FIRMWARE _IOW(EVI_EDDY_IOC_MAGIC, 14, char *)
 
 #endif /* EVI_IOCTL_H */
