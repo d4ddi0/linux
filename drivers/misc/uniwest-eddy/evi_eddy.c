@@ -239,19 +239,8 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 	case EVI_EDDY_STOP_HW:
 		ret = ef_stop_hw(evi);
 		break;
-	case EVI_EDDY_SCANNER_STATUS:
-		ret = copy_to_user((char *)arg, &evi->flags,
-				   sizeof(evi->flags));
-		break;
-	case EVI_EDDY_SCANNER_CMD:
-		ret = scanner_cmd(&evi->ss, (void *)arg);
-		break;
-	case EVI_EDDY_SCANNER_FIRMWARE:
-		ret = ef_load_scanner_firmware(&evi->ss, (char *)arg);
-		break;
 	default:
-		dev_warn(evi->dev, "Invalid IOCTL called: %d\n", command);
-		ret = -ENOTTY;
+		ret = scanner_ioctl(filp, command, arg, &evi->ss);
 		break;
 	}
 

@@ -28,7 +28,7 @@ struct smartscanner {
 
 int ef_scannerirq_probe(struct smartscanner *ss);
 void ef_scannerirq_remove(struct smartscanner *ss);
-long scanner_cmd(struct smartscanner *ss, void __user *arg);
-int ef_load_scanner_firmware(struct smartscanner *ss, __user char *path);
+long scanner_ioctl(struct file *filp, unsigned int command, unsigned long arg,
+		   struct smartscanner *ss);
 
 #endif /* _UNIWEST_SMARTSCANNER_H */

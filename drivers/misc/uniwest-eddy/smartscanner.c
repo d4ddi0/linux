@@ -18,11 +18,7 @@
 
 #include "evi_registers.h"
 #include "smartscanner.h"
-
-struct scanner_command {
-	uint32_t command;
-	uint32_t response;
-};
+#include "ss_user.h"
 
 static const u32 SS_SEND = 0x000;
 static const u32 SS_RECV = 0x100;
@@ -216,7 +212,7 @@ static void scanner_seq_reset(struct smartscanner *ss)
 	}
 }
 
-long scanner_cmd(struct smartscanner *ss, void __user *arg)
+static long scanner_cmd(struct smartscanner *ss, void __user *arg)
 {
 	long ret = 0;
 	struct scanner_command cmd;
@@ -330,7 +326,7 @@ static int ef_write_scanner_fw(struct smartscanner *ss,
 	return 0;
 }
 
-int ef_load_scanner_firmware(struct smartscanner *ss, __user char *path)
+static int scanner_load_firmware(struct smartscanner *ss, __user char *path)
 {
 	int ret;
 	int i;
@@ -359,6 +355,29 @@ int ef_load_scanner_firmware(struct smartscanner *ss, __user char *path)
 	}
 
 	release_firmware(fw);
+
+	return ret;
+}
+
+long scanner_ioctl(struct file *filp, unsigned int command, unsigned long arg,
+		   struct smartscanner *ss)
+{
+	long ret;
+
+	switch (command) {
+	case SCANNER_STATUS:
+		ret = copy_to_user((char *)arg, &ss->flags, sizeof(ss->flags));
+		break;
+	case SCANNER_CMD:
+		ret = scanner_cmd(ss, (void *)arg);
+		break;
+	case SCANNER_FIRMWARE:
+		ret = scanner_load_firmware(ss, (char *)arg);
+		break;
+	default:
+		dev_warn(ss->dev, "Invalid IOCTL called: %d\n", command);
+		ret = -ENOTTY;
+	}
 
 	return ret;
 }
