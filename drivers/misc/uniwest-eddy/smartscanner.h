@@ -9,13 +9,11 @@
 #define SCANNER_CONNECTED   (0x00010000)
 
 #include <linux/io.h>
-#include <linux/compiler.h>
-#include <linux/compiler.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
 struct smartscanner {
-   struct device *dev;
+	struct device *dev;
 	void __iomem *status;
 	void __iomem *base;
 	unsigned int irq;

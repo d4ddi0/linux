@@ -6,7 +6,6 @@
 #else
 #include <stdint.h>
 #include <sys/ioctl.h>
-#include <stdint.h>
 #endif
 
 struct sample {
