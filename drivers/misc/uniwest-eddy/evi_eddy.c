@@ -50,10 +50,6 @@ struct ef_device {
 	const char *fw_name;
 };
 
-static struct ef_device ef_device = {
-	.base = NULL,
-};
-
 static const struct of_device_id of_ef_match[] = {
 	{ .compatible = "uniwest,evi-eddy", },
 	{}
@@ -79,12 +75,14 @@ static ssize_t ef_data_read(struct file *filp, char __user *buf, size_t count,
  */
 static int ef_open(struct inode *inode, struct file *filp)
 {
+	struct ef_device *evi = filp->private_data;
+
 	if (MAJOR(filp->f_path.dentry->d_inode->i_rdev) == ef_major &&
 		MINOR(filp->f_path.dentry->d_inode->i_rdev) == ef_minor) {
 		filp->private_data = container_of(inode->i_cdev,
 						  struct ef_device, data_cdev);
 	} else {
-		dev_err(ef_device.dev, "Error opening device\n");
+		dev_err(evi->dev, "Error opening device\n");
 		return -ENODEV;
 	}
 
@@ -106,8 +104,7 @@ static long ef_start_data_flow(struct ef_device *evi)
 	char buf[64];
 
 	/* read DIFF_X to clear the irq line */
-	evi_read_data(buf, sizeof(buf),
-			ef_device.base + EVI_DATABUF);
+	evi_read_data(buf, sizeof(buf), evi->base + EVI_DATABUF);
 	return 0;
 }
 
@@ -181,8 +178,10 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 
 static int ef_release(struct inode *inode, struct file *filp)
 {
-	ef_stop_hw(&ef_device);
-	dev_dbg(ef_device.dev, "EVi read device closed\n");
+	struct ef_device *evi = filp->private_data;
+
+	ef_stop_hw(evi);
+	dev_dbg(evi->dev, "EVi read device closed\n");
 	return 0;
 }
 
@@ -338,7 +337,7 @@ static void ef_free_char_devices(struct ef_device *evi)
 static int ef_hw_map(struct platform_device *pdev)
 {
 	struct resource res;
-	struct ef_device *evi = &ef_device;
+	struct ef_device *evi = platform_get_drvdata(pdev);
 	uint32_t ef_ver;
 	int ret = 0;
 
@@ -370,16 +369,18 @@ static int of_ef_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 	const struct of_device_id *match;
-	struct ef_device *evi = &ef_device;
+	struct ef_device *evi;
 
 	match = of_match_device(of_ef_match, &pdev->dev);
 	if (!match)
 		return -EINVAL;
 
-	ef_device.dev = &pdev->dev;
+	evi = kzalloc(sizeof(*evi), GFP_KERNEL);
+	platform_set_drvdata(pdev, evi);
+	evi->dev = &pdev->dev;
 	sema_init(&evi->access, 1);
 
-	ret_val = init_character_device(&ef_device);
+	ret_val = init_character_device(evi);
 	if (ret_val)
 		return ret_val;
 
@@ -399,17 +400,17 @@ static int of_ef_probe(struct platform_device *pdev)
 	return ret_val;
 
 ef_hw_chardev_remove:
-	ef_free_char_devices(&ef_device);
+	ef_free_char_devices(evi);
 
 	return ret_val;
 }
 
 static int of_ef_remove(struct platform_device *pdev)
 {
-	struct ef_device *evi = &ef_device;
+	struct ef_device *evi = platform_get_drvdata(pdev);
 
-	ef_scannerirq_remove(&ef_device.ss);
-	ef_free_char_devices(&ef_device);
+	ef_scannerirq_remove(&evi->ss);
+	ef_free_char_devices(evi);
 
 	dev_notice(evi->dev, "removed\n");
 	return 0;
