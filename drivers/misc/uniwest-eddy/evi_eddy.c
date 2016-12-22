@@ -47,6 +47,7 @@ struct ef_device {
 	struct device *dev;
 	struct smartscanner ss;
 	struct semaphore access;
+	struct resource *res;
 	const char *fw_name;
 };
 
@@ -203,27 +204,21 @@ static int ef_mmap_hw(struct file *filp, struct vm_area_struct *vma)
 	int ret;
 	size_t size = vma->vm_end - vma->vm_start;
 	struct ef_device *evi = filp->private_data;
-	struct resource res;
+	resource_size_t res_size = resource_size(evi->res);
 
-	ret = of_address_to_resource(evi->dev->of_node, 0, &res);
-	if (ret) {
-		dev_err(evi->dev, "of_address_to_resource failed: %d\n", ret);
-		return ret;
-	}
-
-	if (size <= resource_size(&res)) {
+	if (size <= res_size) {
 		dev_info(evi->dev, "request mmap 0x%x of 0x%zx bytes\n",
-			size, resource_size(&res));
+			size, res_size);
 	} else {
 		dev_err(evi->dev, "Error: mmap %zx cannot exceed 0x%zx\n",
-			size, resource_size(&res));
+			size, res_size);
 		return -EINVAL;
 	}
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	ret = io_remap_pfn_range(vma, vma->vm_start, res.start >> PAGE_SHIFT,
-			size, vma->vm_page_prot);
+	ret = io_remap_pfn_range(vma, vma->vm_start,
+				 evi->res->start >> PAGE_SHIFT, size,
+				 vma->vm_page_prot);
 	if (ret) {
 		dev_err(evi->dev, "io_remap_pfn_range failed: %d\n", ret);
 		return ret;
@@ -333,35 +328,27 @@ static void ef_free_char_devices(struct ef_device *evi)
 	class_destroy(ef_class);
 }
 
-static int ef_hw_map(struct platform_device *pdev)
+static int ef_hw_map(struct ef_device *evi)
 {
-	struct resource res;
-	struct ef_device *evi = platform_get_drvdata(pdev);
 	uint32_t ef_ver;
-	int ret = 0;
-
-	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
-	if (ret) {
-		dev_err(&pdev->dev, "of_address_to_resource failed: %d\n", ret);
-		return ret;
-	}
+	int ret;
 
 	/* devm_ioremap_resource automatically unmaps as the device is freed */
-	evi->base = devm_ioremap_resource(&pdev->dev, &res);
+	evi->base = devm_ioremap_resource(evi->dev, evi->res);
+	if (IS_ERR(evi->base)) {
+		ret = PTR_ERR(evi->base);
+		dev_err(evi->dev, "Could not map hw: %d\n", ret);
+		return ret;
+	}
 
 	ef_ver = readl_relaxed(evi->base + EVI_VERSION);
 	dev_notice(evi->dev, "evi eddy device version: %08X\r\n", ef_ver);
 	if (ef_ver == 0xffffffff || ef_ver == 0) {
-		dev_err(&pdev->dev, "HW Version invalid!\n");
+		dev_err(evi->dev, "HW Version invalid!\n");
 		return -EPROBE_DEFER;
 	}
 
-	if (IS_ERR(evi->base)) {
-		ret = PTR_ERR(evi->base);
-		dev_err(evi->dev, "Could not map hw: %d\n", ret);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int of_ef_probe(struct platform_device *pdev)
@@ -383,7 +370,14 @@ static int of_ef_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = ef_hw_map(pdev);
+	evi->res = devm_kzalloc(evi->dev, sizeof(*evi->res), GFP_KERNEL);
+	ret = of_address_to_resource(evi->dev->of_node, 0, evi->res);
+	if (ret) {
+		dev_err(evi->dev, "of_address_to_resource failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = ef_hw_map(evi);
 	if (ret)
 		goto ef_hw_chardev_remove;
 
