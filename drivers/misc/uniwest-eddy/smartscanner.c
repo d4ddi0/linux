@@ -18,7 +18,7 @@
 #include "smartscanner.h"
 #include "ss_user.h"
 
-static const u32 SS_SEND = 0x000;
+static const u32 SS_SEND;
 static const u32 SS_RECV = 0x100;
 static const u32 SS_FIFO = 0x104;
 static const u32 SS_BBRECV = 0x204;
@@ -31,14 +31,14 @@ static const u32 SS_BBRECV = 0x204;
  */
 static bool read_scanner(struct smartscanner *ss)
 {
-	uint32_t msg, msg_type;
+	u32 msg, msg_type;
 
 	msg = readl_relaxed(ss->base + SS_RECV);
 	dev_dbg(ss->dev, "recvd from scanner: 0x%8.8x\n", msg);
 
 	if (!(ss->flags & SCANNER_CONNECTED)) {
 		dev_dbg(ss->dev, "scanner not connected. discard 0x%8.8x\n",
-				msg);
+			msg);
 		return false;
 	}
 
@@ -77,7 +77,7 @@ static irqreturn_t ef_handle_scannerirq(int irq, void *dev)
 {
 	struct smartscanner *ss = (struct smartscanner *)dev;
 	union ef_status status;
-	uint32_t nr_msgs;
+	u32 nr_msgs;
 
 	status.raw_data = readl_relaxed(ss->status);
 	dev_dbg(ss->dev, "scanner preread status 0x%8.8x\n", status.raw_data);
@@ -96,7 +96,7 @@ static void scanner_update_status(struct work_struct *work)
 {
 	struct smartscanner *ss = container_of(work, struct smartscanner,
 					       status_work);
-	uint32_t status, changes;
+	u32 status, changes;
 
 	status = readl_relaxed(ss->base + SS_BBRECV);
 	changes = status ^ ss->last_status;
@@ -116,9 +116,8 @@ static void scanner_update_status(struct work_struct *work)
 		int i;
 
 		ss->flags = 0;
-		for (i = 0; i < 8; i++) {
+		for (i = 0; i < 8; i++)
 			readl_relaxed(ss->base + SS_RECV);
-		}
 	}
 }
 
@@ -172,9 +171,9 @@ void ef_scannerirq_remove(struct smartscanner *ss)
 	free_irq(ss->statusirq, &ss->statusirq);
 }
 
-static bool ef_seq_num_ok(uint32_t last_msg, uint32_t msg)
+static bool ef_seq_num_ok(u32 last_msg, uint32_t msg)
 {
-	uint32_t exected_seq_num = (last_msg + 0x00010000) & 0x00ff0000;
+	u32 exected_seq_num = (last_msg + 0x00010000) & 0x00ff0000;
 
 	return ((msg & 0x00ff0000) == exected_seq_num);
 }
@@ -191,9 +190,9 @@ static long scanner_data(struct smartscanner *ss, struct scanner_command *cmd)
 }
 
 static void _scanner_seq_reset(struct smartscanner *ss,
-				struct scanner_command *cmd)
+			       struct scanner_command *cmd)
 {
-	uint32_t seq = ((cmd->command - 0x00000100) & 0x0000ff00) << 8;
+	u32 seq = ((cmd->command - 0x00000100) & 0x0000ff00) << 8;
 
 	ss->msg &= 0xff00ffff;
 	ss->msg |= seq;
@@ -202,7 +201,7 @@ static void _scanner_seq_reset(struct smartscanner *ss,
 static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 {
 	long ret = 0;
-	uint32_t msg_type;
+	u32 msg_type;
 
 	dev_dbg(ss->dev, "sending to scanner: 0x%8.8x\n", cmd->command);
 	ss->data_ready = false;
@@ -210,13 +209,13 @@ static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 		_scanner_seq_reset(ss, cmd);
 
 	writel_relaxed(cmd->command, ss->base + SS_SEND);
-	ret = wait_event_interruptible_timeout(ss->wq, ss->data_ready, HZ/5);
+	ret = wait_event_interruptible_timeout(ss->wq, ss->data_ready, HZ / 5);
 
 	if (ret < 0)
 		return ret;
 
 	if (!ret) {
-		uint32_t prev_msg = ss->msg;
+		u32 prev_msg = ss->msg;
 
 		dev_warn(ss->dev, "scanner cmd 0x%8.8x timed out.\n",
 			 cmd->command);
@@ -301,7 +300,7 @@ static long scanner_cmd(struct smartscanner *ss, void __user *arg)
 
 #define NUM_SCANNER_WORDS 11
 static int ef_write_scanner_fw(struct smartscanner *ss,
-				const struct firmware *fw)
+			       const struct firmware *fw)
 {
 	int ret = 0;
 	enum state {

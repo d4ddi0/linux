@@ -191,7 +191,6 @@
 /* padding 0x00F4 to the end are unused to make length 0x100*/
 #define EVI_EDDY_CHANNEL_SIZE                 0x0100
 
-
 /***************************************************************************
  * EVI_EDDY_IIR_COEF register offsets
  *
@@ -202,9 +201,8 @@
 #define EVI_EDDY_IIR_B              0x0008 /* iir b 3 registers @ 32 bits */
 #define EVI_EDDY_IIR_LR             0x0014 /* iir Lr 32 bits */
 #define EVI_EDDY_IIR_LI             0x0014 /* iir Li 32 bits */
-#define EVI_EDDY_IIR_MLI            0x001C /* iir MLi 32 bits unused at this time */
-#define EVI_EDDY_IIR_SIZE           0x0020 /* iir MLi 32 bits unused at this time */
-
+#define EVI_EDDY_IIR_MLI            0x001C /* iir MLi 32 bits ... unused */
+#define EVI_EDDY_IIR_SIZE           0x0020 /* iir MLi 32 bits ... unused */
 
 /***************************************************************************
  * EVI_EDDY_MIXED_DEF
