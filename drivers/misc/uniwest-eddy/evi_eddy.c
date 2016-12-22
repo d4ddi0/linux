@@ -67,7 +67,7 @@ static int ef_open(struct inode *inode, struct file *filp)
 	struct ef_device *evi = filp->private_data;
 
 	if (MAJOR(filp->f_path.dentry->d_inode->i_rdev) == ef_major &&
-		MINOR(filp->f_path.dentry->d_inode->i_rdev) == ef_minor) {
+	    MINOR(filp->f_path.dentry->d_inode->i_rdev) == ef_minor) {
 		filp->private_data = container_of(inode->i_cdev,
 						  struct ef_device, data_cdev);
 	} else {
@@ -141,7 +141,7 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 	switch (command) {
 	case EVI_EDDY_VERSION:
 		ret = copy_to_user((char *)arg, UTS_RELEASE,
-				    strlen(UTS_RELEASE));
+				   strlen(UTS_RELEASE));
 		break;
 	case EVI_EDDY_START_DATA_FLOW:
 		ret = ef_start_data_flow(evi);
@@ -182,7 +182,7 @@ static void ef_vma_close(struct vm_area_struct *vma)
 {
 }
 
-static struct vm_operations_struct ef_mmap_vm_ops = {
+static const struct vm_operations_struct ef_mmap_vm_ops = {
 	.open               = ef_vma_open,
 	.close              = ef_vma_close,
 };
@@ -196,7 +196,7 @@ static int ef_mmap_hw(struct file *filp, struct vm_area_struct *vma)
 
 	if (size <= res_size) {
 		dev_info(evi->dev, "request mmap 0x%x of 0x%zx bytes\n",
-			size, res_size);
+			 size, res_size);
 	} else {
 		dev_err(evi->dev, "Error: mmap %zx cannot exceed 0x%zx\n",
 			size, res_size);
@@ -264,7 +264,7 @@ static int init_character_device(struct ef_device *evi)
 
 	dev_dbg(evi->dev, "Creating character device(s) - ");
 	ef_class = class_create(THIS_MODULE, DEVICE_NAME);
-	if (ef_class == NULL) {
+	if (!ef_class) {
 		dev_err(evi->dev, "Could not create EVi device class\n");
 		return PTR_ERR(ef_class);
 	}
@@ -500,14 +500,14 @@ static int __init ef_init(void)
 	ret = platform_driver_register(&of_ef_driver);
 	if (ret) {
 		pr_err("Register %s failed %d:\n",
-			of_ef_driver.driver.name, ret);
+		       of_ef_driver.driver.name, ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&pci_ef_driver);
 	if (ret) {
 		pr_err("Register %s failed %d:\n",
-			pci_ef_driver.driver.name, ret);
+		       pci_ef_driver.driver.name, ret);
 		return ret;
 	}
 

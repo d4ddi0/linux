@@ -102,6 +102,7 @@ union ef_status {
 		uint32_t unused1 :17;
 	};
 };
+
 #define EVI_STATUS 0x10010
 
 /*
@@ -170,7 +171,6 @@ union ef_status {
  * 24-bit number are actually sent to the DAC
  */
 #define EVI_NULLDACOFFSET 0x10034
-
 
 /*
  * EVI_ALARM_ENABLE
@@ -278,6 +278,7 @@ union ef_fifo_status {
 		uint32_t unused :13;
 	};
 };
+
 #define EVI_FIFO_STATUS 0x10064
 
 /*
@@ -362,7 +363,6 @@ union ef_fifo_status {
  * Bits  7: 0 - Data
  */
 #define EVI_XY_DAC_CNTL 0x10410
-
 
 /*
  * Bits  23:0   Either ramp mode step size or DAC output value
@@ -652,7 +652,6 @@ union ef_alarm_status {
 #define EVI_ALARM_AND_BANK1     0x20104
 #define EVI_ALARM_OR_BANK0      0x20108
 #define EVI_ALARM_OR_BANK1      0x2010C
-
 
 /* Test Data */
 #define EVI_TEST_0 0x30000
