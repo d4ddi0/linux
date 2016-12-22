@@ -1,21 +1,17 @@
 #ifndef EVI_IOCTL_H
 #define EVI_IOCTL_H
 
-#ifdef __KERNEL__
+#include <linux/types.h>
 #include <linux/ioctl.h>
-#else
-#include <stdint.h>
-#include <sys/ioctl.h>
-#endif
 
 struct sample {
-	uint32_t flags;
-	uint32_t timestamp;
-	int32_t encoders[4];
-	uint32_t x0;
-	uint32_t y0;
-	uint32_t x1;
-	uint32_t y1;
+	__u32 flags;
+	__u32 timestamp;
+	__s32 encoders[4];
+	__u32 x0;
+	__u32 y0;
+	__u32 x1;
+	__u32 y1;
 };
 
 /* ioctls */
