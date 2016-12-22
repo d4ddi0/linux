@@ -276,7 +276,7 @@ static const struct file_operations ef_data_fops = {
 
 static int init_character_device(struct ef_device *evi)
 {
-	int ret_val;
+	int ret;
 	struct device *device = NULL;
 
 	dev_dbg(evi->dev, "Creating character device(s) - ");
@@ -287,8 +287,8 @@ static int init_character_device(struct ef_device *evi)
 	}
 
 	evi->data_dev_num = MKDEV(ef_major, ef_minor);
-	ret_val = register_chrdev_region(evi->data_dev_num, 1, DEVICE_NAME);
-	if (ret_val < 0) {
+	ret = register_chrdev_region(evi->data_dev_num, 1, DEVICE_NAME);
+	if (ret < 0) {
 		dev_err(evi->dev, "Error registering character device\n");
 		goto evi_char_init_reg_region;
 	}
@@ -296,8 +296,8 @@ static int init_character_device(struct ef_device *evi)
 	cdev_init(&evi->data_cdev, &ef_data_fops);
 	evi->data_cdev.owner = THIS_MODULE;
 	evi->data_cdev.ops = &ef_data_fops;
-	ret_val = cdev_add(&evi->data_cdev, evi->data_dev_num, 1);
-	if (ret_val < 0) {
+	ret = cdev_add(&evi->data_cdev, evi->data_dev_num, 1);
+	if (ret < 0) {
 		dev_err(evi->dev, "Error adding character device\n");
 		goto evi_char_init_dev_add;
 	}
@@ -305,14 +305,13 @@ static int init_character_device(struct ef_device *evi)
 	device = device_create(ef_class, NULL, evi->data_dev_num, NULL,
 			       DEVICE_NAME "%d", ef_minor);
 	if (IS_ERR(device)) {
-		ret_val = PTR_ERR(device);
-		dev_err(evi->dev,
-			"Error trying to create device \"%s%d\" - %d\n",
-			DEVICE_NAME, ef_minor, ret_val);
+		ret = PTR_ERR(device);
+		dev_err(evi->dev, "Error creating " DEVICE_NAME "%d\": %d\n",
+			ef_minor, ret);
 		goto evi_char_init_dev_create;
 	}
 
-	return ret_val;
+	return ret;
 
 evi_char_init_dev_create:
 	cdev_del(&evi->data_cdev);
@@ -323,7 +322,7 @@ evi_char_init_dev_add:
 evi_char_init_reg_region:
 	class_destroy(ef_class);
 
-	return ret_val;
+	return ret;
 }
 
 static void ef_free_char_devices(struct ef_device *evi)
@@ -367,7 +366,7 @@ static int ef_hw_map(struct platform_device *pdev)
 
 static int of_ef_probe(struct platform_device *pdev)
 {
-	int ret_val = 0;
+	int ret = 0;
 	const struct of_device_id *match;
 	struct ef_device *evi;
 
@@ -380,12 +379,12 @@ static int of_ef_probe(struct platform_device *pdev)
 	evi->dev = &pdev->dev;
 	sema_init(&evi->access, 1);
 
-	ret_val = init_character_device(evi);
-	if (ret_val)
-		return ret_val;
+	ret = init_character_device(evi);
+	if (ret)
+		return ret;
 
-	ret_val = ef_hw_map(pdev);
-	if (ret_val)
+	ret = ef_hw_map(pdev);
+	if (ret)
 		goto ef_hw_chardev_remove;
 
 	evi->ss.irq = irq_of_parse_and_map(evi->dev->of_node, 0);
@@ -393,16 +392,16 @@ static int of_ef_probe(struct platform_device *pdev)
 	evi->ss.dev = evi->dev;
 	evi->ss.status = evi->base + EVI_STATUS;
 	evi->ss.base = evi->base + EVI_SCANNERSEND;
-	ret_val = ef_scannerirq_probe(&evi->ss);
-	if (ret_val)
+	ret = ef_scannerirq_probe(&evi->ss);
+	if (ret)
 		goto ef_hw_chardev_remove;
 
-	return ret_val;
+	return ret;
 
 ef_hw_chardev_remove:
 	ef_free_char_devices(evi);
 
-	return ret_val;
+	return ret;
 }
 
 static int of_ef_remove(struct platform_device *pdev)
