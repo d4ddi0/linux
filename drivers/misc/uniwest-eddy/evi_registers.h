@@ -88,18 +88,18 @@
  * Bits 31:15 - Not used
  */
 union ef_status {
-	uint32_t raw_data;
+	__u32 raw_data;
 	struct {
-		uint32_t nr_scanner_err :4;
-		uint32_t nr_scanner_fifo :3;
-		uint32_t scanner_empty :1;
-		uint32_t scanner_ones :1;
-		uint32_t scanner_zeroes :1;
-		uint32_t unused0 :2;
-		uint32_t scanner_rx_err :1;
-		uint32_t scanner_fifo_full :1;
-		uint32_t alarm_enable :1;
-		uint32_t unused1 :17;
+		__u32 nr_scanner_err :4;
+		__u32 nr_scanner_fifo :3;
+		__u32 scanner_empty :1;
+		__u32 scanner_ones :1;
+		__u32 scanner_zeroes :1;
+		__u32 unused0 :2;
+		__u32 scanner_rx_err :1;
+		__u32 scanner_fifo_full :1;
+		__u32 alarm_enable :1;
+		__u32 unused1 :17;
 	};
 };
 
@@ -265,17 +265,17 @@ union ef_status {
  *
  */
 union ef_fifo_status {
-	uint32_t raw_data;
+	__u32 raw_data;
 	struct {
-		uint32_t fifo_count :12;
-		uint32_t empty :1;
-		uint32_t almost_full :1;
-		uint32_t full :1;
-		uint32_t word_zeroes :1;
-		uint32_t stopped :1;
-		uint32_t int0 :1;
-		uint32_t int1 :1;
-		uint32_t unused :13;
+		__u32 fifo_count :12;
+		__u32 empty :1;
+		__u32 almost_full :1;
+		__u32 full :1;
+		__u32 word_zeroes :1;
+		__u32 stopped :1;
+		__u32 int0 :1;
+		__u32 int1 :1;
+		__u32 unused :13;
 	};
 };
 
@@ -479,14 +479,15 @@ union ef_fifo_status {
  * Bits 07:00 - Pin Polarity (Sets output to active High or active Low)
  */
 union ef_alarm_status {
-	uint32_t raw_data;
+	__u32 raw_data;
 	struct {
-		uint8_t pin_polarity;
-		uint8_t output_enable;
-		uint8_t delay_enable;
-		uint8_t unused;
+		unsigned char pin_polarity;
+		unsigned char output_enable;
+		unsigned char delay_enable;
+		unsigned char unused;
 	};
 };
+
 #define EVI_ALARM_STATE   0x10430
 
 /*
