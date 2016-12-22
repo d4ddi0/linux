@@ -17,10 +17,13 @@ struct smartscanner {
 	void __iomem *status;
 	void __iomem *base;
 	unsigned int irq;
+	unsigned int statusirq;
 	u32 flags;
 	u32 msg;
 	u32 last_msg;
 	wait_queue_head_t wq;
+	u32 last_status;
+	struct work_struct status_work;
 	bool data_ready;
 };
 

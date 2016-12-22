@@ -39,16 +39,13 @@
 #include "smartscanner.h"
 
 #define DEVICE_NAME "evi-eddy"
-#define SCANNER_CONNECTED (0x00010000)
 
 struct ef_device {
 	void __iomem *base;
 	dev_t data_dev_num;
 	struct cdev data_cdev;
 	struct device *dev;
-	unsigned int statusirq;
 	struct smartscanner ss;
-	u32 battbox_state;
 	struct semaphore access;
 	const char *fw_name;
 };
@@ -67,73 +64,6 @@ static const int ef_major = 42;
 static const int ef_minor;
 
 static struct class *ef_class;
-static struct work_struct ef_status_work;
-
-void ef_update_status(struct work_struct *work)
-{
-	struct ef_device *evi = &ef_device;
-	uint32_t status, changes;
-
-	status = readl_relaxed(evi->base + EVI_BATTBOXRECV);
-	changes = status ^ evi->battbox_state;
-	evi->battbox_state = status;
-
-	if (!(changes & (1 << 31)))
-		return;
-
-	if (status & (1 << 31)) {
-		msleep(100);
-		status = readl_relaxed(evi->base +
-					EVI_BATTBOXRECV);
-		if (status & (1 << 31)) {
-			evi->ss.msg = 0x00ff0000;
-			evi->ss.flags |= SCANNER_CONNECTED;
-		}
-	} else {
-		int i;
-
-		evi->ss.flags = 0;
-		for (i = 0; i < 8; i++) {
-			readl_relaxed(evi->base +
-				      EVI_SCANNERRECV);
-		}
-	}
-}
-
-static irqreturn_t ef_handle_statusirq(int irq, void *dev)
-{
-	schedule_work(&ef_status_work);
-	return IRQ_HANDLED;
-}
-
-int ef_statusirq_probe(struct ef_device *evi)
-{
-	int ret = 0;
-
-	evi->statusirq = irq_of_parse_and_map(evi->dev->of_node, 1);
-	if (!evi->statusirq) {
-		dev_err(evi->dev, "Could not find status irq\n");
-		return -ENODEV;
-	}
-
-	ret = request_irq(evi->statusirq, ef_handle_statusirq,
-			0, "evi-eddy-status", evi);
-	if (ret) {
-		dev_err(evi->dev, "Error requesting statusirq: %d\n", ret);
-		return ret;
-	}
-
-	INIT_WORK(&ef_status_work, ef_update_status);
-	schedule_work(&ef_status_work);
-
-	return ret;
-}
-
-static void ef_statusirq_remove(struct ef_device *evi)
-{
-	disable_irq(evi->statusirq);
-	free_irq(evi->statusirq, &evi->statusirq);
-}
 
 /**
  * Character Device read handler. No read op on test character device.
@@ -428,9 +358,6 @@ static int ef_hw_map(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	evi->ss.dev = evi->dev;
-	evi->ss.status = evi->base + EVI_STATUS;
-	evi->ss.base = evi->base + EVI_SCANNERSEND;
 	if (IS_ERR(evi->base)) {
 		ret = PTR_ERR(evi->base);
 		dev_err(evi->dev, "Could not map hw: %d\n", ret);
@@ -460,18 +387,17 @@ static int of_ef_probe(struct platform_device *pdev)
 	if (ret_val)
 		goto ef_hw_chardev_remove;
 
+	evi->ss.irq = irq_of_parse_and_map(evi->dev->of_node, 0);
+	evi->ss.statusirq = irq_of_parse_and_map(evi->dev->of_node, 1);
+	evi->ss.dev = evi->dev;
+	evi->ss.status = evi->base + EVI_STATUS;
+	evi->ss.base = evi->base + EVI_SCANNERSEND;
 	ret_val = ef_scannerirq_probe(&evi->ss);
 	if (ret_val)
 		goto ef_hw_chardev_remove;
 
-	ret_val = ef_statusirq_probe(evi);
-	if (ret_val)
-		goto out_ss_irq;
-
 	return ret_val;
 
-out_ss_irq:
-	ef_scannerirq_remove(&evi->ss);
 ef_hw_chardev_remove:
 	ef_free_char_devices(&ef_device);
 
@@ -483,7 +409,6 @@ static int of_ef_remove(struct platform_device *pdev)
 	struct ef_device *evi = &ef_device;
 
 	ef_scannerirq_remove(&ef_device.ss);
-	ef_statusirq_remove(&ef_device);
 	ef_free_char_devices(&ef_device);
 
 	dev_notice(evi->dev, "removed\n");
