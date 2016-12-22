@@ -5,14 +5,12 @@
  *
  */
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
@@ -23,6 +21,7 @@
 static const u32 SS_SEND = 0x000;
 static const u32 SS_RECV = 0x100;
 static const u32 SS_FIFO = 0x104;
+static const u32 SS_BBRECV = 0x204;
 
 /*
  * read_scanner
@@ -93,13 +92,50 @@ static irqreturn_t ef_handle_scannerirq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void scanner_update_status(struct work_struct *work)
+{
+	struct smartscanner *ss = container_of(work, struct smartscanner,
+					       status_work);
+	uint32_t status, changes;
+
+	status = readl_relaxed(ss->base + SS_BBRECV);
+	changes = status ^ ss->last_status;
+	ss->last_status = status;
+
+	if (!(changes & (1 << 31)))
+		return;
+
+	if (status & (1 << 31)) {
+		msleep(100);
+		status = readl_relaxed(ss->base + SS_BBRECV);
+		if (status & (1 << 31)) {
+			ss->msg = 0x00ff0000;
+			ss->flags |= SCANNER_CONNECTED;
+		}
+	} else {
+		int i;
+
+		ss->flags = 0;
+		for (i = 0; i < 8; i++) {
+			readl_relaxed(ss->base + SS_RECV);
+		}
+	}
+}
+
+static irqreturn_t ef_handle_statusirq(int irq, void *dev)
+{
+	struct smartscanner *ss = (struct smartscanner *)dev;
+
+	schedule_work(&ss->status_work);
+	return IRQ_HANDLED;
+}
+
 int ef_scannerirq_probe(struct smartscanner *ss)
 {
 	int ret;
 
 	init_waitqueue_head(&ss->wq);
 
-	ss->irq = irq_of_parse_and_map(ss->dev->of_node, 0);
 	if (!ss->irq) {
 		dev_err(ss->dev, "Could not find scanner irq\n");
 		return -ENODEV;
@@ -109,12 +145,31 @@ int ef_scannerirq_probe(struct smartscanner *ss)
 	if (ret)
 		dev_err(ss->dev, "Error requesting scannerirq: %d\n", ret);
 
+	if (!ss->statusirq) {
+		dev_err(ss->dev, "Could not find status irq\n");
+		return -ENODEV;
+	}
+
+	ret = request_irq(ss->statusirq, ef_handle_statusirq, 0,
+			  "scanner-status", ss);
+	if (ret) {
+		dev_err(ss->dev, "Error requesting statusirq: %d\n", ret);
+		free_irq(ss->irq, &ss->irq);
+		return ret;
+	}
+
+	INIT_WORK(&ss->status_work, scanner_update_status);
+
+	schedule_work(&ss->status_work);
+
 	return ret;
 }
 
 void ef_scannerirq_remove(struct smartscanner *ss)
 {
 	free_irq(ss->irq, &ss->irq);
+	disable_irq(ss->statusirq);
+	free_irq(ss->statusirq, &ss->statusirq);
 }
 
 static bool ef_seq_num_ok(uint32_t last_msg, uint32_t msg)
