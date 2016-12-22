@@ -5,21 +5,11 @@
  *
  */
 
-#include <generated/compile.h>
 #include <generated/utsrelease.h>
-#include <linux/bug.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/gpio/consumer.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/kobject.h>
 #include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -27,12 +17,9 @@
 #include <linux/of_irq.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/sched.h>
 #include <linux/semaphore.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <linux/wait.h>
 
 /* headers private to the module */
 #include "evi_registers.h"
