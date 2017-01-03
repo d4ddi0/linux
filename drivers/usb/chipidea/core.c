@@ -930,6 +930,16 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/*
+	 * At device tree, we have no device node for chipidea core,
+	 * the glue layer's node is the parent node for host and udc
+	 * device. But in related driver, the parent device is chipidea
+	 * core. So, in order to let the common driver get parent's node,
+	 * we let the core's device node equals glue layer's node.
+	 */
+	if (dev->parent && dev->parent->of_node)
+		dev->of_node = dev->parent->of_node;
+
 	if (ci->platdata->phy) {
 		ci->phy = ci->platdata->phy;
 	} else if (ci->platdata->usb_phy) {
@@ -943,7 +953,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 				PTR_ERR(ci->usb_phy) == -ENXIO) {
 			ret = -ENXIO;
 			goto ulpi_exit;
-		}
 
 		if (IS_ERR(ci->phy) && IS_ERR(ci->usb_phy)) {
 			ret = -EPROBE_DEFER;
@@ -959,7 +968,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
 		dev_err(dev, "unable to init phy: %d\n", ret);
-		return ret;
+		goto clear_of_node;
 	}
 
 	ci->hw_bank.phys = res->start;
@@ -1072,6 +1081,7 @@ deinit_phy:
 	ci_usb_phy_exit(ci);
 ulpi_exit:
 	ci_ulpi_exit(ci);
+	dev->of_node = NULL;
 
 	return ret;
 }
@@ -1090,6 +1100,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	sysfs_remove_group(&ci->dev->kobj, &ci_attr_group);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
+	ci->dev->of_node = NULL;
 	ci_usb_phy_exit(ci);
 	ci_ulpi_exit(ci);
 
