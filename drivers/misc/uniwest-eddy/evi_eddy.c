@@ -328,20 +328,10 @@ static void ef_free_char_devices(struct ef_device *evi)
 	class_destroy(ef_class);
 }
 
-static int ef_hw_map(struct ef_device *evi)
+static int ef_hw_verify(struct ef_device *evi)
 {
-	uint32_t ef_ver;
-	int ret;
+	u32 ef_ver = readl_relaxed(evi->base + EVI_VERSION);
 
-	/* devm_ioremap_resource automatically unmaps as the device is freed */
-	evi->base = devm_ioremap_resource(evi->dev, evi->res);
-	if (IS_ERR(evi->base)) {
-		ret = PTR_ERR(evi->base);
-		dev_err(evi->dev, "Could not map hw: %d\n", ret);
-		return ret;
-	}
-
-	ef_ver = readl_relaxed(evi->base + EVI_VERSION);
 	dev_notice(evi->dev, "evi eddy device version: %08X\r\n", ef_ver);
 	if (ef_ver == 0xffffffff || ef_ver == 0) {
 		dev_err(evi->dev, "HW Version invalid!\n");
@@ -377,7 +367,16 @@ static int of_ef_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = ef_hw_map(evi);
+	evi->base = devm_ioremap_resource(evi->dev, evi->res);
+	if (IS_ERR(evi->base)) {
+		ret = PTR_ERR(evi->base);
+		dev_err(evi->dev, "Could not map hw: %d\n", ret);
+		return ret;
+	}
+	if (ret)
+		goto ef_hw_chardev_remove;
+
+	ret = ef_hw_verify(evi);
 	if (ret)
 		goto ef_hw_chardev_remove;
 
