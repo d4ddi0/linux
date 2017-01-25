@@ -14,9 +14,16 @@ struct sample {
 	__u32 y1;
 };
 
+struct reg_write_info {
+	__u32 addr;
+	__u32 value;
+};
+
 /* ioctls */
 #define EVI_EDDY_IOC_MAGIC 'E'
 #define EVI_EDDY_VERSION _IOR(EVI_EDDY_IOC_MAGIC, 0, char *)
+#define EVI_EDDY_READ_REG _IOWR(EVI_EDDY_IOC_MAGIC, 1, __u32 *)
+#define EVI_EDDY_WRITE_REG _IOW(EVI_EDDY_IOC_MAGIC, 2, __u32 *)
 #define EVI_EDDY_START_DATA_FLOW _IO(EVI_EDDY_IOC_MAGIC, 3)
 #define EVI_EDDY_STOP_DATA_FLOW _IO(EVI_EDDY_IOC_MAGIC, 4)
 #define EVI_EDDY_START_HW _IO(EVI_EDDY_IOC_MAGIC, 5)
