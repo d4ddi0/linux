@@ -130,6 +130,31 @@ static long ef_stop_hw(struct ef_device *evi)
 	return -EAGAIN;
 }
 
+static long ef_read_reg(struct ef_device *evi, __user __u32 *reg)
+{
+	__u32 addr;
+	__u32 val;
+
+	if (unlikely(get_user(addr, reg)))
+		return -EFAULT;
+
+	val = readl_relaxed(evi->base + addr);
+	return put_user(val, reg);
+}
+
+static long ef_write_reg(struct ef_device *evi,
+			 __user struct reg_write_info *reg)
+{
+	struct reg_write_info tmp;
+
+	if (unlikely(copy_from_user(&tmp, reg, sizeof(tmp))))
+		return -EFAULT;
+
+	writel_relaxed(tmp.value, evi->base + tmp.addr);
+
+	return 0;
+}
+
 static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 {
 	long ret = 0;
@@ -154,6 +179,12 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 		break;
 	case EVI_EDDY_STOP_HW:
 		ret = ef_stop_hw(evi);
+		break;
+	case EVI_EDDY_READ_REG:
+		ret = ef_read_reg(evi, (__user u32 *)arg);
+		break;
+	case EVI_EDDY_WRITE_REG:
+		ret = ef_write_reg(evi, (__user struct reg_write_info *)arg);
 		break;
 	default:
 		ret = scanner_ioctl(filp, command, arg, &evi->ss);
