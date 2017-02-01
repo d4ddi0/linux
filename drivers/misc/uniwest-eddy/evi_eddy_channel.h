@@ -8,6 +8,17 @@
 #define EVI_EDDY_CHANNEL_H
 
 /*
+ * EVI_EDDY_MAGSIN
+ * EVI_EDDY_MAGCOS
+ * EVI_EDDY_XY_SIZE
+ *
+ * Macros for accessing XY register pairs
+ */
+#define EVI_EDDY_MAGSIN 0
+#define EVI_EDDY_MAGCOS 4
+#define EVI_EDDY_XY_SIZE 8
+
+/*
  * EVI_EDDY_CHANNEL_CONTROL
  * Bits 4: 0 - mux output for this channel
  * Bit     5 - Unused
@@ -20,6 +31,13 @@
  *             0 = use filter
  *             1 = bypass filter
  */
+#define CHANNEL_CONTROL_MUX_MASK            (0x1F << 0 )
+#define CHANNEL_CONTROL_PROBE_DRIVE_ON      (1    << 6 )
+#define CHANNEL_CONTROL_ENABLE_DIFF         (1    << 8 )
+#define CHANNEL_CONTROL_ENABLE_ABS          (1    << 9 )
+#define CHANNEL_CONTROL_ENABLE_TWO_FREQ     (1    << 10)
+#define CHANNEL_CONTROL_BYPASS_FILTER       (1    << 31)
+
 #define EVI_EDDY_CHANNEL_CONTROL              0x0000
 
 /*
@@ -49,6 +67,7 @@
  * Care needs to be taken that the combination of ProbeMag X and Y
  * does not have amplitude greater that MAX_DAC_OUT
  */
+#define EVI_EDDY_CHANNEL_PROBE_MAG            0x0008
 #define EVI_EDDY_CHANNEL_PROBE_MAG_SIN        0x0008
 #define EVI_EDDY_CHANNEL_PROBEMAGCOS          0x000C
 
@@ -131,6 +150,11 @@
 #define EVI_EDDY_CHANNEL_GAIN                 0x00C0
 
 /*
+ * EVI_EDDY_CHANNEL_NULL
+ */
+#define EVI_EDDY_CHANNEL_NULL                 0x00C4
+
+/*
  * EVI_EDDY_CHANNEL_NULLMAGSIN
  * EVI_EDDY_CHANNEL_NULLMAGCOS
  *
@@ -159,6 +183,7 @@
  * this includes the digital gain to account for values between
  * the analog gain values
  */
+#define EVI_EDDY_CHANNEL_ROT                  0x00D4
 #define EVI_EDDY_CHANNEL_ROTMAGSIN            0x00D4
 #define EVI_EDDY_CHANNEL_ROTMAGCOS            0x00D8
 
@@ -190,6 +215,8 @@
 
 /* padding 0x00F4 to the end are unused to make length 0x100*/
 #define EVI_EDDY_CHANNEL_SIZE                 0x0100
+#define EVI_EDDY_CHAN(ts, chan) (EVI_EDDY_CHANNEL_SIZE * ((ts * 2) + chan))
+
 
 /***************************************************************************
  * EVI_EDDY_IIR_COEF register offsets
@@ -226,6 +253,17 @@
  *               3 = reserved
  * Bits 31:18 - unused
  */
+
+#define MIXED_TIMESLOT_MASK              (0x7f)
+#define MIXED_CHANNEL_MASK               (0x1)
+
+#define MIXED_PRIMARY_TIMESLOT_SHIFT     (0)
+#define MIXED_PRIMARY_CHANNEL_SHIFT      (7)
+#define MIXED_SECONDARY_TIMESLOT_SHIFT   (8)
+#define MIXED_SECONDARY_CHANNEL_SHIFT    (15)
+#define MIXED_OPERATION_MODE_SHIFT       (16)
+#define MIXED_ENABLE_SHIFT               (18)
+
 #define EVI_EDDY_MIXED_CONTROL 0x0000
 
 #define EVI_EDDY_MIXED_ROTMAGSIN 0x0004

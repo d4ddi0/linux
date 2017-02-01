@@ -66,6 +66,29 @@
  *               1 = don't use filter
  * Bit     31  - 1 to Use the data FIFO interrupt; defaults to 0
  */
+#define CONTROL_REG_NUM_TIMESLOTS_SHIFT     (0)
+#define CONTROL_REG_NUM_TIMESLOTS           (0x7f << 0)
+#define CONTROL_REG_SINGLE_FREQ_BIT         (1    <<  7)
+#define CONTROL_REG_TEST_MODE(x)            ((x&0x03) << 8)
+#define CONTROL_REG_ENCODER_ENABLE_SHIFT    (10        )
+#define CONTROL_REG_ENCODER_ENABLE_MASK     (0x0F << 10)
+#define CONTROL_REG_LED_OFF                 (1    << 14)
+#define CONTROL_REG_PINGPONG_DISABLE        (1    << 15)
+#define CONTROL_REG_ENCODER_USED_SHIFT      (16        )
+#define CONTROL_REG_ENCODER_USED_MASK       (0x03 << 16)
+#define CONTROL_REG_TEST_SEL(x)             ((x&0x03) << 18)
+#define CONTROL_REG_LED4                    (1    << 20)
+#define CONTROL_REG_LED5                    (1    << 21)
+#define CONTROL_REG_LED6                    (1    << 22)
+#define CONTROL_REG_LED7                    (1    << 23)
+#define CONTROL_REG_MUX_OUT_MODE            (1    << 24)
+#define CONTROL_REG_NULL_DAC_OLD_CONFIG     (1    << 25)
+#define CONTROL_REG_FLUSH_FILTERS           (1    << 26)
+#define CONTROL_REG_PROBE_TROUBLE_SD        (1    << 27)
+#define CONTROL_REG_CMP_SHUTDOWN            (1    << 28)
+#define CONTROL_REG_DSP_SKIP_MODE           (1    << 29)
+#define CONTROL_REG_FILTER_BYPASS           (1    << 30)
+
 #define EVI_CONTROLREG 0x10000
 /* define unused  0x10004 */
 #define EVI_STARTPROCESSING 0x10008
@@ -343,6 +366,13 @@ union ef_fifo_status {
  * Bits 15: 8 - Address
  * Bits  7: 0 - Data
  */
+#define ADC_TWOS_COMPLIMENT_MODE               (0x01)
+#define ADC_DATA_OUTPUT_RANDOMIZER             (0x02)
+#define ADC_ALTERNATE_BIT_POLARITY             (0x04)
+#define ADC_ADDRESS(x)                         ((x&0xFF)<<8)
+#define ADC_CONTROL_TEST(x)                    ((x&0x7)<<3)
+#define STORE_SAMPLES_CTL(x,y,z)               ((x&0x1FFF)|((y&0x1)<<16)|((z&0x7)<<20))
+
 #define EVI_ADC_CONTROL 0x1040C
 
 /*
@@ -444,6 +474,7 @@ union ef_fifo_status {
  */
 #define EVI_BATTBOXRECV 0x10704
 
+#define EVI_TIMESTAMP 0x10800
 /*
  * EVI_DATA_FIFO
  *
