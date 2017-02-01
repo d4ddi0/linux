@@ -4,7 +4,7 @@
 #ifdef __KERNEL__
 #include <linux/ioctl.h>
 #else
-#include <stdint.h>
+#include <linux/types.h>
 #include <sys/ioctl.h>
 #endif
 
