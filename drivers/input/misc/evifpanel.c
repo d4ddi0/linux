@@ -496,6 +496,7 @@ static struct serio_device_id fp_ids[] = {
 	},
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(serio, fp_ids);
 
 static struct serio_driver fp_drv = {
 	.driver = {
