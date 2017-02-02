@@ -27,6 +27,8 @@
 #include "smartscanner.h"
 
 #define DEVICE_NAME "evi-eddy"
+#define SAMPLE_SIZE  40
+#define SAMPLE_WORDS (SAMPLE_SIZE / sizeof(__u32))
 
 struct ef_device {
 	void __iomem *base;
@@ -56,7 +58,31 @@ static struct class *ef_class;
 static ssize_t ef_data_read(struct file *filp, char __user *buf, size_t count,
 			    loff_t *f_pos)
 {
-	return -EINVAL;
+	int i, j;
+	union ef_fifo_status st;
+
+	struct ef_device *evi = filp->private_data;
+
+	st.raw_data = readl_relaxed(evi->base + EVI_FIFO_STATUS);
+	count = rounddown(min(count, st.fifo_count * sizeof(__u32)),
+			      SAMPLE_SIZE);
+
+	if (st.full)
+		dev_dbg_ratelimited(evi->dev, "Buffer filled up");
+
+	for (i = 0; i < count; i += SAMPLE_SIZE) {
+		u32 data[SAMPLE_WORDS];
+
+		for (j = 0; j < SAMPLE_WORDS; j++)
+			data[j] = readl_relaxed(evi->base + EVI_FIFO);
+
+		if (copy_to_user(buf, (char *)data, SAMPLE_SIZE))
+			return -EFAULT;
+
+		buf += SAMPLE_SIZE;
+	}
+
+	return i ? i : -EAGAIN;
 }
 
 /*
