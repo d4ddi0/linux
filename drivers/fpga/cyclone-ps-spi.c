@@ -184,12 +184,20 @@ static int cyclonespi_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id ef_spi_ids[] = {
+	{"cyclone-ps-spi", 0},
+	{}
+};
+
+MODULE_DEVICE_TABLE(spi, ef_spi_ids);
+
 static struct spi_driver cyclonespi_driver = {
 	.driver = {
 		.name = "cyclone-ps-spi",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_ef_match),
 	},
+	.id_table = ef_spi_ids,
 	.probe = cyclonespi_probe,
 	.remove = cyclonespi_remove,
 };
