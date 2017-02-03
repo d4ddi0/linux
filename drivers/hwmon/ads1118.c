@@ -526,11 +526,18 @@ static int ads1118_probe(struct spi_device *spi)
 	return 0;
 }
 
+static struct spi_device_id ads1118_spi_id[] = {
+	{"ads1118", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, ads1118_spi_id);
+
 static struct spi_driver ads1118_driver = {
 	.driver = {
 		.name = "ads1118",
 		.of_match_table = ads_1x18_ids,
 	},
+	.id_table = ads1118_spi_id,
 	.probe = ads1118_probe,
 };
 
