@@ -550,6 +550,12 @@ static struct pci_driver pci_ef_driver = {
 	.remove = pci_ef_remove,
 };
 
+static void __exit ef_exit(void)
+{
+	platform_driver_unregister(&of_ef_driver);
+	pci_unregister_driver(&pci_ef_driver);
+}
+
 static int __init ef_init(void)
 {
 	int ret;
@@ -558,23 +564,21 @@ static int __init ef_init(void)
 	if (ret) {
 		pr_err("Register %s failed %d:\n",
 		       of_ef_driver.driver.name, ret);
-		return ret;
+		goto register_failed;
 	}
 
 	ret = pci_register_driver(&pci_ef_driver);
 	if (ret) {
 		pr_err("Register %s failed %d:\n",
 		       pci_ef_driver.driver.name, ret);
-		return ret;
+		goto register_failed;
 	}
 
-	return ret;
-}
+	return 0;
 
-static void __exit ef_exit(void)
-{
-	platform_driver_unregister(&of_ef_driver);
-	pci_unregister_driver(&pci_ef_driver);
+register_failed:
+	ef_exit();
+	return ret;
 }
 
 module_init(ef_init);
