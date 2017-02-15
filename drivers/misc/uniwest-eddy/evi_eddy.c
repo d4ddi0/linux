@@ -41,6 +41,11 @@ struct ef_device {
 	const char *fw_name;
 };
 
+static struct class ef_class = {
+	.name = "evi-eddy",
+	.owner = THIS_MODULE,
+};
+
 static const struct of_device_id of_ef_match[] = {
 	{ .compatible = "uniwest,evi-eddy", },
 	{}
@@ -50,7 +55,6 @@ static const struct of_device_id of_ef_match[] = {
 static const int ef_major = 42;
 static const int ef_minor;
 
-static struct class *ef_class;
 
 /**
  * Character Device read handler. No read op on test character device.
@@ -319,18 +323,11 @@ static int init_character_device(struct ef_device *evi)
 	int ret;
 	struct device *device = NULL;
 
-	dev_dbg(evi->dev, "Creating character device(s) - ");
-	ef_class = class_create(THIS_MODULE, DEVICE_NAME);
-	if (!ef_class) {
-		dev_err(evi->dev, "Could not create EVi device class\n");
-		return PTR_ERR(ef_class);
-	}
-
 	evi->data_dev_num = MKDEV(ef_major, ef_minor);
 	ret = register_chrdev_region(evi->data_dev_num, 1, DEVICE_NAME);
 	if (ret < 0) {
 		dev_err(evi->dev, "Error registering character device\n");
-		goto evi_char_init_reg_region;
+		return ret;
 	}
 
 	cdev_init(&evi->data_cdev, &ef_data_fops);
@@ -342,7 +339,7 @@ static int init_character_device(struct ef_device *evi)
 		goto evi_char_init_dev_add;
 	}
 
-	device = device_create(ef_class, NULL, evi->data_dev_num, NULL,
+	device = device_create(&ef_class, NULL, evi->data_dev_num, NULL,
 			       DEVICE_NAME "%d", ef_minor);
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
@@ -359,18 +356,14 @@ evi_char_init_dev_create:
 evi_char_init_dev_add:
 	unregister_chrdev_region(evi->data_dev_num, 1);
 
-evi_char_init_reg_region:
-	class_destroy(ef_class);
-
 	return ret;
 }
 
 static void ef_free_char_devices(struct ef_device *evi)
 {
-	device_destroy(ef_class, evi->data_dev_num);
+	device_destroy(&ef_class, evi->data_dev_num);
 	cdev_del(&evi->data_cdev);
 	unregister_chrdev_region(evi->data_dev_num, 1);
-	class_destroy(ef_class);
 }
 
 static int ef_hw_verify(struct ef_device *evi)
@@ -554,11 +547,18 @@ static void __exit ef_exit(void)
 {
 	platform_driver_unregister(&of_ef_driver);
 	pci_unregister_driver(&pci_ef_driver);
+	class_unregister(&ef_class);
 }
 
 static int __init ef_init(void)
 {
 	int ret;
+
+	ret = class_register(&ef_class);
+	if (ret) {
+		pr_err("Register class %s failed: %d\n", ef_class.name, ret);
+		goto register_failed;
+	}
 
 	ret = platform_driver_register(&of_ef_driver);
 	if (ret) {
