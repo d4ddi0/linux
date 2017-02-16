@@ -318,7 +318,7 @@ static const struct file_operations ef_data_fops = {
 	.mmap               = ef_mmap,
 };
 
-static int init_character_device(struct ef_device *evi)
+static int init_character_device(struct ef_device *evi, struct device *parent)
 {
 	int ret;
 	struct device *device = NULL;
@@ -326,7 +326,7 @@ static int init_character_device(struct ef_device *evi)
 	evi->data_dev_num = MKDEV(ef_major, ef_minor);
 	ret = register_chrdev_region(evi->data_dev_num, 1, DEVICE_NAME);
 	if (ret < 0) {
-		dev_err(evi->dev, "Error registering character device\n");
+		dev_err(parent, "Error registering character device\n");
 		return ret;
 	}
 
@@ -335,15 +335,15 @@ static int init_character_device(struct ef_device *evi)
 	evi->data_cdev.ops = &ef_data_fops;
 	ret = cdev_add(&evi->data_cdev, evi->data_dev_num, 1);
 	if (ret < 0) {
-		dev_err(evi->dev, "Error adding character device\n");
+		dev_err(parent, "Error adding character device\n");
 		goto evi_char_init_dev_add;
 	}
 
-	device = device_create(&ef_class, NULL, evi->data_dev_num, NULL,
-			       DEVICE_NAME "%d", ef_minor);
+	evi->dev = device_create(&ef_class, parent, evi->data_dev_num, evi,
+				 DEVICE_NAME "%d", ef_minor);
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);
-		dev_err(evi->dev, "Error creating " DEVICE_NAME "%d\": %d\n",
+		dev_err(parent, "Error creating " DEVICE_NAME "%d\": %d\n",
 			ef_minor, ret);
 		goto evi_char_init_dev_create;
 	}
@@ -391,15 +391,14 @@ static int of_ef_probe(struct platform_device *pdev)
 
 	evi = kzalloc(sizeof(*evi), GFP_KERNEL);
 	platform_set_drvdata(pdev, evi);
-	evi->dev = &pdev->dev;
 	sema_init(&evi->access, 1);
 
-	ret = init_character_device(evi);
+	ret = init_character_device(evi, &pdev->dev);
 	if (ret)
 		return ret;
 
 	evi->res = devm_kzalloc(evi->dev, sizeof(*evi->res), GFP_KERNEL);
-	ret = of_address_to_resource(evi->dev->of_node, 0, evi->res);
+	ret = of_address_to_resource(pdev->dev.of_node, 0, evi->res);
 	if (ret) {
 		dev_err(evi->dev, "of_address_to_resource failed: %d\n", ret);
 		return ret;
@@ -418,9 +417,9 @@ static int of_ef_probe(struct platform_device *pdev)
 	if (ret)
 		goto ef_hw_chardev_remove;
 
-	evi->ss.irq = irq_of_parse_and_map(evi->dev->of_node, 0);
-	evi->ss.statusirq = irq_of_parse_and_map(evi->dev->of_node, 1);
-	evi->ss.dev = evi->dev;
+	evi->ss.irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	evi->ss.statusirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
+	evi->ss.dev = &pdev->dev;
 	evi->ss.status = evi->base + EVI_STATUS;
 	evi->ss.base = evi->base + EVI_SCANNERSEND;
 	ret = ef_scannerirq_probe(&evi->ss);
@@ -479,7 +478,6 @@ static int pci_ef_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	evi = kzalloc(sizeof(*evi), GFP_KERNEL);
 	pci_set_drvdata(pdev, evi);
-	evi->dev = &pdev->dev;
 	sema_init(&evi->access, 1);
 
 	ret = pci_enable_device(pdev);
@@ -505,14 +503,14 @@ static int pci_ef_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	evi->ss.statusirq = pci_irq_vector(pdev, 0);
 	evi->ss.irq = pci_irq_vector(pdev, 1);
-	evi->ss.dev = evi->dev;
+	evi->ss.dev = &pdev->dev;
 	evi->ss.status = evi->base + EVI_STATUS;
 	evi->ss.base = evi->base + EVI_SCANNERSEND;
 	ret = ef_scannerirq_probe(&evi->ss);
 	if (ret)
 		return ret;
 
-	ret = init_character_device(evi);
+	ret = init_character_device(evi, &pdev->dev);
 	if (ret)
 		return ret;
 
