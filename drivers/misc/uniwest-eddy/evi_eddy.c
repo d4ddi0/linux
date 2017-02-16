@@ -41,9 +41,50 @@ struct ef_device {
 	const char *fw_name;
 };
 
+static ssize_t hw_rev_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct ef_device *evi = dev_get_drvdata(dev);
+	u32 hw_rev = readl_relaxed(evi->base + EVI_VERSION) >> 24;
+
+	return sprintf(buf, "%d\n", hw_rev);
+}
+
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t fw_rev_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct ef_device *evi = dev_get_drvdata(dev);
+	u32 rev = readl_relaxed(evi->base + EVI_VERSION);
+	u32 major_rev = (rev & 0xff0000) >> 16;
+	u32 minor_rev = (rev & 0xff00) >> 8;
+	u32 patch_rev = (rev & 0xff);
+
+	return sprintf(buf, "%d.%d.%d\n", major_rev, minor_rev, patch_rev);
+}
+
+static DEVICE_ATTR_RO(fw_rev);
+
+struct attribute *ef_attrs[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_fw_rev.attr,
+	NULL
+};
+
+static const struct attribute_group ef_attr_group = {
+	.attrs = ef_attrs,
+};
+
+static const struct attribute_group *ef_groups[] = {
+	&ef_attr_group,
+	NULL
+};
+
 static struct class ef_class = {
 	.name = "evi-eddy",
 	.owner = THIS_MODULE,
+	.dev_groups = ef_groups,
 };
 
 static const struct of_device_id of_ef_match[] = {
