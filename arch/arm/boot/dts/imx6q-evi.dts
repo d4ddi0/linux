@@ -177,6 +177,7 @@
 	lvds_dimmer: dac@2 {
 		compatible = "ti,dac082s085";
 		spi-max-frequency = <2450000>;
+		spi-cpha;
 		reg = <2>;
 	};
 };
