@@ -378,6 +378,11 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_eddy>;
 		};
+
+		top_buttons: buttons@0,00012040 {
+			compatible = "uniwest,evi-top-io";
+			reg = <0 0x00012040 4>;
+		};
 	};
 };
 
