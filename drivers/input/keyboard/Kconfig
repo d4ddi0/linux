@@ -200,6 +200,15 @@ config KEYBOARD_EP93XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called ep93xx_keypad.
 
+config KEYBOARD_EVI_TOP_IO
+	tristate "EVI top io buttons"
+	depends on OF
+	help
+	  Say Y here to enable the top io panel
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called evi_top_io.
+
 config KEYBOARD_GPIO
 	tristate "GPIO Buttons"
 	depends on GPIOLIB || COMPILE_TEST
