@@ -195,6 +195,11 @@ static long ef_read_reg(struct ef_device *evi, __user __u32 *reg)
 	if (unlikely(get_user(addr, reg)))
 		return -EFAULT;
 
+	if (unlikely(addr > resource_size(evi->res))) {
+		dev_err(evi->dev, "ef_read_reg() bad addr: 0x%x\n", addr);
+		return -EFAULT;
+	}
+
 	val = readl_relaxed(evi->base + addr);
 	return put_user(val, reg);
 }
@@ -206,6 +211,11 @@ static long ef_write_reg(struct ef_device *evi,
 
 	if (unlikely(copy_from_user(&tmp, reg, sizeof(tmp))))
 		return -EFAULT;
+
+	if (unlikely(tmp.addr > resource_size(evi->res))) {
+		dev_err(evi->dev, "ef_write_reg() bad addr: 0x%x\n", tmp.addr);
+		return -EFAULT;
+	}
 
 	writel_relaxed(tmp.value, evi->base + tmp.addr);
 
