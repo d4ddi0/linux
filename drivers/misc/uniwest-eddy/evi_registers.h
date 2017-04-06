@@ -495,9 +495,6 @@ union ef_fifo_status {
  */
 #define EVI_FIFO 0x11000
 
-/* align next field on 0x12000 boundary */
-#define EVI_DATABUF 0x12000
-
 /* Fast Alarm registers */
 /*
  * EVI_ALARM_STATE

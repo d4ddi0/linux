@@ -159,20 +159,6 @@ void evi_read_data(void *dest, size_t len, void __iomem *src)
 	barrier();
 }
 
-static long ef_start_data_flow(struct ef_device *evi)
-{
-	char buf[64];
-
-	/* read DIFF_X to clear the irq line */
-	evi_read_data(buf, sizeof(buf), evi->base + EVI_DATABUF);
-	return 0;
-}
-
-static long ef_stop_data_flow(struct ef_device *evi)
-{
-	return 0;
-}
-
 static long ef_start_hw(struct ef_device *evi)
 {
 	writel_relaxed(0, evi->base + EVI_STARTPROCESSING);
@@ -240,10 +226,8 @@ static long ef_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 				   strlen(UTS_RELEASE));
 		break;
 	case EVI_EDDY_START_DATA_FLOW:
-		ret = ef_start_data_flow(evi);
-		break;
 	case EVI_EDDY_STOP_DATA_FLOW:
-		ret = ef_stop_data_flow(evi);
+		ret = 0;
 		break;
 	case  EVI_EDDY_START_HW:
 		ret = ef_start_hw(evi);
