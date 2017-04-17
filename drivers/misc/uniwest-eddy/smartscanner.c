@@ -41,6 +41,11 @@ static const u32 SS_FLAG = 0x204;
 #define SS_MSG_EVENT_DEPRECATED (0x80)
 #define SS_MSG_EVENT (0xc0)
 
+#define SS_SEQNO_OFFSET (16)
+#define SS_SEQNO_MASK (0xff << SS_SEQNO_OFFSET)
+#define SS_SEQNO_INCREMENT BIT(SS_SEQNO_OFFSET)
+#define SS_MSG_SEQNO(msg) ((msg & SS_SEQNO_MASK) >> SS_SEQNO_OFFSET)
+
 static void gen_events(struct smartscanner *ss, u32 msg)
 {
 	unsigned long changed_buttons = SS_BUTTONS(msg ^ ss->flags);
@@ -82,7 +87,7 @@ static bool read_scanner(struct smartscanner *ss)
 		 * ignore any all zero msg unless the SEQNO is legit
 		 * i.e. the last SEQNO was 0xff
 		 */
-		if (!msg && ((ss->msg & 0x00ff0000) != 0x00ff0000))
+		if (msg == 0x00000000 && (SS_MSG_SEQNO(ss->msg) != 0xff))
 			break;
 		/* fall through */
 	case SS_MSG_RESPONSE_16BIT:
@@ -131,7 +136,7 @@ static irqreturn_t ef_handle_scannerirq(int irq, void *dev)
 
 static void ss_connect(struct smartscanner *ss)
 {
-	ss->msg = 0x00ff0000;
+	ss->msg = (0 - SS_SEQNO_INCREMENT) & SS_SEQNO_MASK;
 	ss->flags |= SCANNER_CONNECTED;
 }
 
@@ -264,9 +269,9 @@ void ef_scannerirq_remove(struct smartscanner *ss)
 
 static bool ef_seq_num_ok(u32 last_msg, uint32_t msg)
 {
-	u32 exected_seq_num = (last_msg + 0x00010000) & 0x00ff0000;
+	u32 exected_seq_num = (last_msg + SS_SEQNO_INCREMENT) & SS_SEQNO_MASK;
 
-	return ((msg & 0x00ff0000) == exected_seq_num);
+	return ((msg & SS_SEQNO_MASK) == exected_seq_num);
 }
 
 static long scanner_data(struct smartscanner *ss, struct scanner_command *cmd)
@@ -282,9 +287,9 @@ static long scanner_data(struct smartscanner *ss, struct scanner_command *cmd)
 static void _scanner_seq_reset(struct smartscanner *ss,
 			       struct scanner_command *cmd)
 {
-	u32 seq = ((cmd->command - 0x00000100) & 0x0000ff00) << 8;
+	u32 seq = ((cmd->command << 8) - SS_SEQNO_INCREMENT) & SS_SEQNO_MASK;
 
-	ss->msg &= 0xff00ffff;
+	ss->msg &= ~SS_SEQNO_MASK;
 	ss->msg |= seq;
 }
 
@@ -316,8 +321,7 @@ static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 	if (!ef_seq_num_ok(ss->last_msg, ss->msg)) {
 		dev_warn(ss->dev,
 			 "invalid scanner seq: 0x%x to 0x%x\n",
-			 (ss->last_msg & 0x00ff0000) >> 16,
-			 (ss->msg & 0x00ff0000) >> 16);
+			 SS_MSG_SEQNO(ss->last_msg), SS_MSG_SEQNO(ss->msg));
 		return -EIO;
 	}
 
