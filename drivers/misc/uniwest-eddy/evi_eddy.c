@@ -544,5 +544,6 @@ module_init(ef_init);
 module_exit(ef_exit);
 
 MODULE_DEVICE_TABLE(of, of_ef_match);
+MODULE_ALIAS("platform:" DEVICE_NAME);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EVi (c) Kernel Module 2013 United Western Technologies, Corporation");
