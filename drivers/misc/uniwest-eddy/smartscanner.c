@@ -4,6 +4,7 @@
  * smartscanner module handles uniwest smartscanner devices
  *
  */
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -28,6 +29,17 @@ static const u32 SS_FLAG = 0x204;
 #define SS_NUM_BUTTONS (4)
 #define SS_BUTTONMASK (0xf << SS_BUTTON_OFFSET)
 #define SS_BUTTONS(msg) (((msg) & SS_BUTTONMASK) >> SS_BUTTON_OFFSET)
+
+#define SS_MSGTYPE_OFFSET (24)
+#define SS_MSGTYPE_MASK (0xff << SS_MSGTYPE_OFFSET)
+
+#define SS_MSGTYPE(msg) (msg >> SS_MSGTYPE_OFFSET)
+#define SS_MSG_RESPONSE_ERROR (0x00)
+#define SS_MSG_RESPONSE_16BIT (0x01)
+#define SS_MSG_RESPONSE_32BIT_A (0x02)
+#define SS_MSG_RESPONSE_32BIT_B (0x03)
+#define SS_MSG_EVENT_DEPRECATED (0x80)
+#define SS_MSG_EVENT (0xc0)
 
 static void gen_events(struct smartscanner *ss, u32 msg)
 {
@@ -61,10 +73,10 @@ static bool read_scanner(struct smartscanner *ss)
 		return false;
 	}
 
-	msg_type = msg >> 24;
+	msg_type = SS_MSGTYPE(msg);
 
 	switch (msg_type) {
-	case 0x00:
+	case SS_MSG_RESPONSE_ERROR:
 		/*
 		 * All zeros can mean we read from an empty fifo
 		 * ignore any all zero msg unless the SEQNO is legit
@@ -73,20 +85,20 @@ static bool read_scanner(struct smartscanner *ss)
 		if (!msg && ((ss->msg & 0x00ff0000) != 0x00ff0000))
 			break;
 		/* fall through */
-	case 0x01:
-	case 0x02:
-	case 0x03:
+	case SS_MSG_RESPONSE_16BIT:
+	case SS_MSG_RESPONSE_32BIT_A:
+	case SS_MSG_RESPONSE_32BIT_B:
 		if (msg == ss->msg)
 			break;
 
 		ss->last_msg = ss->msg;
 		ss->msg = msg;
-		if (msg_type == 0x02)
+		if (msg_type == SS_MSG_RESPONSE_32BIT_A)
 			break;  /* first half of msg. Do not wake the ioctl */
 
 		return true;
-	case 0x80:
-	case 0xC0:
+	case SS_MSG_EVENT_DEPRECATED:
+	case SS_MSG_EVENT:
 		gen_events(ss, msg);
 		ss->flags &= 0xffff0000;
 		ss->flags |= (msg & 0xffff);
@@ -260,8 +272,7 @@ static bool ef_seq_num_ok(u32 last_msg, uint32_t msg)
 static long scanner_data(struct smartscanner *ss, struct scanner_command *cmd)
 {
 	cmd->response = (ss->msg & 0xffff);
-
-	if ((ss->msg & 0xff000000) == 0x03000000)
+	if (SS_MSGTYPE(ss->msg) == SS_MSG_RESPONSE_32BIT_B)
 		cmd->response |= (ss->last_msg & 0xffff) << 16;
 
 	/* magic number indicating data returned */
@@ -280,7 +291,6 @@ static void _scanner_seq_reset(struct smartscanner *ss,
 static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 {
 	long ret = 0;
-	u32 msg_type;
 
 	dev_dbg(ss->dev, "sending to scanner: 0x%8.8x\n", cmd->command);
 	ss->data_ready = false;
@@ -311,13 +321,12 @@ static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 		return -EIO;
 	}
 
-	msg_type = ss->msg >> 24;
-	switch (msg_type) {
-	case 0x00:
+	switch (SS_MSGTYPE(ss->msg)) {
+	case SS_MSG_RESPONSE_ERROR:
 		ret = ss->msg & 0xffff;
 		break;
-	case 0x01:
-	case 0x03:
+	case SS_MSG_RESPONSE_16BIT:
+	case SS_MSG_RESPONSE_32BIT_B:
 		ret = scanner_data(ss, cmd);
 		break;
 	default:
