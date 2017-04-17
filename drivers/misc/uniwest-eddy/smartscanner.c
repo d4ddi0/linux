@@ -93,6 +93,22 @@ static irqreturn_t ef_handle_scannerirq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void ss_connect(struct smartscanner *ss)
+{
+	ss->msg = 0x00ff0000;
+	ss->flags |= SCANNER_CONNECTED;
+}
+
+static void ss_disconnect(struct smartscanner *ss)
+{
+	int i;
+
+	ss->flags = 0;
+	/* flush the scanner fifo */
+	for (i = 0; i < 8; i++)
+		readl_relaxed(ss->base + SS_RECV);
+}
+
 static void scanner_update_status(struct work_struct *work)
 {
 	struct smartscanner *ss = container_of(work, struct smartscanner,
@@ -107,18 +123,13 @@ static void scanner_update_status(struct work_struct *work)
 		return;
 
 	if (status & SS_FLAG_CONNECTED) {
+		/* debounce scanner connect */
 		msleep(100);
 		status = readl_relaxed(ss->base + SS_FLAG);
-		if (status & SS_FLAG_CONNECTED) {
-			ss->msg = 0x00ff0000;
-			ss->flags |= SCANNER_CONNECTED;
-		}
+		if (status & SS_FLAG_CONNECTED)
+			ss_connect(ss);
 	} else {
-		int i;
-
-		ss->flags = 0;
-		for (i = 0; i < 8; i++)
-			readl_relaxed(ss->base + SS_RECV);
+		ss_disconnect(ss);
 	}
 }
 
