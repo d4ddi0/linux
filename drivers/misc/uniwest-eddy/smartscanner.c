@@ -45,6 +45,8 @@ static const u32 SS_FLAG = 0x204;
 #define SS_SEQNO_MASK (0xff << SS_SEQNO_OFFSET)
 #define SS_SEQNO_INCREMENT BIT(SS_SEQNO_OFFSET)
 #define SS_MSG_SEQNO(msg) ((msg & SS_SEQNO_MASK) >> SS_SEQNO_OFFSET)
+#define SS_MSG_HDR_MASK (SS_MSGTYPE_MASK | SS_SEQNO_MASK)
+#define SS_MSG_CONTENT_MASK (~(SS_MSG_HDR_MASK))
 
 static void gen_events(struct smartscanner *ss, u32 msg)
 {
@@ -105,8 +107,8 @@ static bool read_scanner(struct smartscanner *ss)
 	case SS_MSG_EVENT_DEPRECATED:
 	case SS_MSG_EVENT:
 		gen_events(ss, msg);
-		ss->flags &= 0xffff0000;
-		ss->flags |= (msg & 0xffff);
+		ss->flags &= SS_MSG_HDR_MASK;
+		ss->flags |= msg & SS_MSG_CONTENT_MASK;
 		break;
 	default:
 		dev_warn(ss->dev, "unhandled scanner msg: 0x%8.8x\n", msg);
@@ -276,9 +278,9 @@ static bool ef_seq_num_ok(u32 last_msg, uint32_t msg)
 
 static long scanner_data(struct smartscanner *ss, struct scanner_command *cmd)
 {
-	cmd->response = (ss->msg & 0xffff);
+	cmd->response = (ss->msg & SS_MSG_CONTENT_MASK);
 	if (SS_MSGTYPE(ss->msg) == SS_MSG_RESPONSE_32BIT_B)
-		cmd->response |= (ss->last_msg & 0xffff) << 16;
+		cmd->response |= (ss->last_msg & SS_MSG_CONTENT_MASK) << 16;
 
 	/* magic number indicating data returned */
 	return 0x10000;
@@ -299,7 +301,7 @@ static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 
 	dev_dbg(ss->dev, "sending to scanner: 0x%8.8x\n", cmd->command);
 	ss->data_ready = false;
-	if ((cmd->command & 0xffff0000) == 0x81240000)
+	if ((cmd->command & SS_MSG_HDR_MASK) == 0x81240000)
 		_scanner_seq_reset(ss, cmd);
 
 	writel_relaxed(cmd->command, ss->base + SS_SEND);
@@ -327,7 +329,7 @@ static long _scanner_cmd(struct smartscanner *ss, struct scanner_command *cmd)
 
 	switch (SS_MSGTYPE(ss->msg)) {
 	case SS_MSG_RESPONSE_ERROR:
-		ret = ss->msg & 0xffff;
+		ret = ss->msg & SS_MSG_CONTENT_MASK;
 		break;
 	case SS_MSG_RESPONSE_16BIT:
 	case SS_MSG_RESPONSE_32BIT_B:
