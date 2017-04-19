@@ -65,6 +65,11 @@ static bool read_scanner(struct smartscanner *ss)
 
 	switch (msg_type) {
 	case 0x00:
+		/*
+		 * All zeros can mean we read from an empty fifo
+		 * ignore any all zero msg unless the SEQNO is legit
+		 * i.e. the last SEQNO was 0xff
+		 */
 		if (!msg && ((ss->msg & 0x00ff0000) != 0x00ff0000))
 			break;
 		/* fall through */
