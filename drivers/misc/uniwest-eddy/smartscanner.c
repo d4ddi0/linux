@@ -24,6 +24,24 @@ static const u32 SS_FIFO = 0x104;
 static const u32 SS_FLAG = 0x204;
 
 #define SS_FLAG_CONNECTED BIT(31)
+#define SS_BUTTON_OFFSET (8)
+#define SS_NUM_BUTTONS (4)
+#define SS_BUTTONMASK (0xf << SS_BUTTON_OFFSET)
+#define SS_BUTTONS(msg) (((msg) & SS_BUTTONMASK) >> SS_BUTTON_OFFSET)
+
+static void gen_events(struct smartscanner *ss, u32 msg)
+{
+	unsigned long changed_buttons = SS_BUTTONS(msg ^ ss->flags);
+	unsigned button;
+
+	for_each_set_bit(button, &changed_buttons, SS_NUM_BUTTONS) {
+		bool value = !!(SS_BUTTONS(msg) & BIT(button));
+
+		input_event(ss->input, EV_KEY, ss->keys[button], value);
+		input_sync(ss->input);
+	}
+}
+
 /*
  * read_scanner
  *
@@ -64,6 +82,7 @@ static bool read_scanner(struct smartscanner *ss)
 		return true;
 	case 0x80:
 	case 0xC0:
+		gen_events(ss, msg);
 		ss->flags &= 0xffff0000;
 		ss->flags |= (msg & 0xffff);
 		break;
@@ -141,6 +160,44 @@ static irqreturn_t ef_handle_statusirq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int ss_input_init(struct smartscanner *ss)
+{
+	int i;
+	int ret;
+
+	ss->input = devm_input_allocate_device(ss->dev);
+	if (!ss->input) {
+		dev_err(ss->dev, "failed to allocate input device\n");
+		return -ENOMEM;
+	}
+
+	ss->input->name = "evi_smartscanner";
+	ss->input->phys = "evi_smartscanner/input0";
+	ss->input->id.bustype = BUS_HOST;
+	ss->input->id.vendor = 0x0001;
+	ss->input->id.product = 0x0002;
+	ss->input->id.version = 0x0100;
+
+	__set_bit(EV_KEY, ss->input->evbit);
+
+	ss->keys[0] = KEY_F9;
+	ss->keys[1] = KEY_F10;
+	ss->keys[2] = KEY_F11;
+	ss->keys[3] = KEY_F12;
+
+	for (i = 0; i < SS_NUM_BUTTONS; i++) {
+		input_set_capability(ss->input, EV_KEY, ss->keys[i]);
+	}
+
+	ret = input_register_device(ss->input);
+	if (ret) {
+		dev_err(ss->dev, "Unable to register input device: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ef_scannerirq_probe(struct smartscanner *ss)
 {
 	int ret;
@@ -169,6 +226,10 @@ int ef_scannerirq_probe(struct smartscanner *ss)
 		return ret;
 	}
 
+	ret = ss_input_init(ss);
+	if (ret)
+		return ret;
+
 	INIT_WORK(&ss->status_work, scanner_update_status);
 
 	schedule_work(&ss->status_work);
@@ -181,6 +242,7 @@ void ef_scannerirq_remove(struct smartscanner *ss)
 	free_irq(ss->irq, &ss->irq);
 	disable_irq(ss->statusirq);
 	free_irq(ss->statusirq, &ss->statusirq);
+	input_unregister_device(ss->input);
 }
 
 static bool ef_seq_num_ok(u32 last_msg, uint32_t msg)

@@ -8,6 +8,7 @@
 
 #define SCANNER_CONNECTED   (0x00010000)
 
+#include <linux/input.h>
 #include <linux/io.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -16,6 +17,8 @@ struct smartscanner {
 	struct device *dev;
 	void __iomem *status;
 	void __iomem *base;
+	struct input_dev *input;
+	unsigned int keys[4];
 	unsigned int irq;
 	unsigned int statusirq;
 	u32 flags;
