@@ -30,6 +30,7 @@ struct cyclonespi_conf {
 	struct gpio_desc *config;
 	struct gpio_desc *status;
 	struct spi_device *spi;
+	u32 info_flags;
 };
 
 static const struct of_device_id of_ef_match[] = {
@@ -54,6 +55,8 @@ static int cyclonespi_write_init(struct fpga_manager *mgr,
 {
 	struct cyclonespi_conf *conf = (struct cyclonespi_conf *)mgr->priv;
 	int i;
+
+	conf->info_flags = info->flags;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
 		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
@@ -98,9 +101,11 @@ static int cyclonespi_write(struct fpga_manager *mgr, const char *buf,
 
 	while (fw_data < fw_data_end) {
 		int ret;
-		size_t stride = min(fw_data_end - fw_data, SZ_4K);
+		size_t stride = min_t(size_t, fw_data_end - fw_data, SZ_4K);
 
-		rev_buf(fw_data, stride);
+		if (conf->info_flags & FPGA_MGR_BITSTREAM_LSB_FIRST)
+			rev_buf((char *)fw_data, stride);
+
 		ret = spi_write(conf->spi, fw_data, stride);
 		if (ret) {
 			dev_err(&mgr->dev, "spi error in firmware write: %d\n",
