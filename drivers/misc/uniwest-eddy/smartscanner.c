@@ -18,11 +18,12 @@
 #include "smartscanner.h"
 #include "ss_user.h"
 
-static const u32 SS_SEND;
+static const u32 SS_SEND = 0x00;
 static const u32 SS_RECV = 0x100;
 static const u32 SS_FIFO = 0x104;
-static const u32 SS_BBRECV = 0x204;
+static const u32 SS_FLAG = 0x204;
 
+#define SS_FLAG_CONNECTED BIT(31)
 /*
  * read_scanner
  *
@@ -98,17 +99,17 @@ static void scanner_update_status(struct work_struct *work)
 					       status_work);
 	u32 status, changes;
 
-	status = readl_relaxed(ss->base + SS_BBRECV);
+	status = readl_relaxed(ss->base + SS_FLAG);
 	changes = status ^ ss->last_status;
 	ss->last_status = status;
 
-	if (!(changes & (1 << 31)))
+	if (!(changes & SS_FLAG_CONNECTED))
 		return;
 
-	if (status & (1 << 31)) {
+	if (status & SS_FLAG_CONNECTED) {
 		msleep(100);
-		status = readl_relaxed(ss->base + SS_BBRECV);
-		if (status & (1 << 31)) {
+		status = readl_relaxed(ss->base + SS_FLAG);
+		if (status & SS_FLAG_CONNECTED) {
 			ss->msg = 0x00ff0000;
 			ss->flags |= SCANNER_CONNECTED;
 		}
