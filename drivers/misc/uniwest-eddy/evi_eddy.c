@@ -270,79 +270,6 @@ static int ef_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static void ef_vma_open(struct vm_area_struct *vma)
-{
-}
-
-static void ef_vma_close(struct vm_area_struct *vma)
-{
-}
-
-static const struct vm_operations_struct ef_mmap_vm_ops = {
-	.open               = ef_vma_open,
-	.close              = ef_vma_close,
-};
-
-static int ef_mmap_hw(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-	size_t size = vma->vm_end - vma->vm_start;
-	struct ef_device *evi = filp->private_data;
-	resource_size_t res_size = resource_size(evi->res);
-
-	if (size <= res_size) {
-		dev_info(evi->dev, "request mmap 0x%x of 0x%zx bytes\n",
-			 size, res_size);
-	} else {
-		dev_err(evi->dev, "Error: mmap %zx cannot exceed 0x%zx\n",
-			size, res_size);
-		return -EINVAL;
-	}
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	ret = io_remap_pfn_range(vma, vma->vm_start,
-				 evi->res->start >> PAGE_SHIFT, size,
-				 vma->vm_page_prot);
-	if (ret) {
-		dev_err(evi->dev, "io_remap_pfn_range failed: %d\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
-static int ef_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int ret;
-	struct ef_device *evi = filp->private_data;
-
-	if (down_interruptible(&evi->access))
-		return -ERESTARTSYS;
-
-	vma->vm_private_data = evi;
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP | VM_LOCKED;
-
-	switch (vma->vm_pgoff << PAGE_SHIFT) {
-	case 0:
-		ret = ef_mmap_hw(filp, vma);
-		break;
-
-	default:
-		dev_err(evi->dev, "Could not map memory. Invalid offset specified (0x%016lX).\n",
-			(vma->vm_pgoff << PAGE_SHIFT));
-		return -EINVAL;
-	}
-
-	if (!ret) {
-		vma->vm_ops = &ef_mmap_vm_ops;
-		ef_vma_open(vma);
-	}
-
-	up(&evi->access);
-
-	return ret;
-}
-
 static const struct file_operations ef_data_fops = {
 	.owner              = THIS_MODULE,
 	.read               = ef_data_read,
@@ -350,7 +277,6 @@ static const struct file_operations ef_data_fops = {
 	.release            = ef_release,
 	.llseek             = no_llseek,
 	.unlocked_ioctl     = ef_ioctl,
-	.mmap               = ef_mmap,
 };
 
 static int init_character_device(struct ef_device *evi, struct device *parent)
