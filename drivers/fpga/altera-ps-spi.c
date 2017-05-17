@@ -1,16 +1,19 @@
-/**
- * Altera Cyclone Passive Serial SPI Driver
+/*
+ * Altera Passive Serial SPI Driver
  *
  *  Copyright (c) 2017 United Western Technologies, Corporation
  *
  *  Joshua Clayton <stillcompiling@gmail.com>
  *
- * Manage Altera FPGA firmware that is loaded over spi using the passive
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * Manage Altera FPGA firmware that is loaded over SPI using the passive
  * serial configuration method.
  * Firmware must be in binary "rbf" format.
- * Works on Cyclone V. Should work on cyclone series.
+ * Works on Arria 10, Cyclone V, and Statix V.
  * May work on other Altera FPGAs.
- *
  */
 
 #include <linux/bitrev.h>
@@ -26,7 +29,7 @@
 #define FPGA_MIN_DELAY		50   /* min usecs to wait for config status */
 #define FPGA_MAX_DELAY		1000 /* max usecs to wait for config status */
 
-struct cyclonespi_conf {
+struct altera_ps_conf {
 	struct gpio_desc *config;
 	struct gpio_desc *status;
 	struct spi_device *spi;
@@ -39,9 +42,9 @@ static const struct of_device_id of_ef_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_ef_match);
 
-static enum fpga_mgr_states cyclonespi_state(struct fpga_manager *mgr)
+static enum fpga_mgr_states altera_ps_state(struct fpga_manager *mgr)
 {
-	struct cyclonespi_conf *conf = (struct cyclonespi_conf *)mgr->priv;
+	struct altera_ps_conf *conf = (struct altera_ps_conf *)mgr->priv;
 
 	if (gpiod_get_value(conf->status))
 		return FPGA_MGR_STATE_RESET;
@@ -49,11 +52,11 @@ static enum fpga_mgr_states cyclonespi_state(struct fpga_manager *mgr)
 	return FPGA_MGR_STATE_UNKNOWN;
 }
 
-static int cyclonespi_write_init(struct fpga_manager *mgr,
-				 struct fpga_image_info *info,
-				 const char *buf, size_t count)
+static int altera_ps_write_init(struct fpga_manager *mgr,
+				struct fpga_image_info *info,
+				const char *buf, size_t count)
 {
-	struct cyclonespi_conf *conf = (struct cyclonespi_conf *)mgr->priv;
+	struct altera_ps_conf *conf = (struct altera_ps_conf *)mgr->priv;
 	int i;
 
 	conf->info_flags = info->flags;
@@ -103,10 +106,10 @@ static void rev_buf(char *buf, size_t len)
 	}
 }
 
-static int cyclonespi_write(struct fpga_manager *mgr, const char *buf,
-			    size_t count)
+static int altera_ps_write(struct fpga_manager *mgr, const char *buf,
+			   size_t count)
 {
-	struct cyclonespi_conf *conf = (struct cyclonespi_conf *)mgr->priv;
+	struct altera_ps_conf *conf = (struct altera_ps_conf *)mgr->priv;
 	const char *fw_data = buf;
 	const char *fw_data_end = fw_data + count;
 
@@ -129,10 +132,10 @@ static int cyclonespi_write(struct fpga_manager *mgr, const char *buf,
 	return 0;
 }
 
-static int cyclonespi_write_complete(struct fpga_manager *mgr,
-				     struct fpga_image_info *info)
+static int altera_ps_write_complete(struct fpga_manager *mgr,
+				    struct fpga_image_info *info)
 {
-	struct cyclonespi_conf *conf = (struct cyclonespi_conf *)mgr->priv;
+	struct altera_ps_conf *conf = (struct altera_ps_conf *)mgr->priv;
 
 	if (gpiod_get_value(conf->status)) {
 		dev_err(&mgr->dev, "Error during configuration.\n");
@@ -142,16 +145,16 @@ static int cyclonespi_write_complete(struct fpga_manager *mgr,
 	return 0;
 }
 
-static const struct fpga_manager_ops cyclonespi_ops = {
-	.state = cyclonespi_state,
-	.write_init = cyclonespi_write_init,
-	.write = cyclonespi_write,
-	.write_complete = cyclonespi_write_complete,
+static const struct fpga_manager_ops altera_ps_ops = {
+	.state = altera_ps_state,
+	.write_init = altera_ps_write_init,
+	.write = altera_ps_write,
+	.write_complete = altera_ps_write_complete,
 };
 
-static int cyclonespi_probe(struct spi_device *spi)
+static int altera_ps_probe(struct spi_device *spi)
 {
-	struct cyclonespi_conf *conf = devm_kzalloc(&spi->dev, sizeof(*conf),
+	struct altera_ps_conf *conf = devm_kzalloc(&spi->dev, sizeof(*conf),
 						    GFP_KERNEL);
 
 	if (!conf)
@@ -174,10 +177,10 @@ static int cyclonespi_probe(struct spi_device *spi)
 
 	return fpga_mgr_register(&spi->dev,
 				 "Altera Cyclone PS SPI FPGA Manager",
-				 &cyclonespi_ops, conf);
+				 &altera_ps_ops, conf);
 }
 
-static int cyclonespi_remove(struct spi_device *spi)
+static int altera_ps_remove(struct spi_device *spi)
 {
 	fpga_mgr_unregister(&spi->dev);
 
@@ -185,25 +188,25 @@ static int cyclonespi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ef_spi_ids[] = {
-	{"cyclone-ps-spi", 0},
+	{"altera-ps-spi", 0},
 	{}
 };
 
 MODULE_DEVICE_TABLE(spi, ef_spi_ids);
 
-static struct spi_driver cyclonespi_driver = {
+static struct spi_driver altera_ps_driver = {
 	.driver = {
-		.name = "cyclone-ps-spi",
+		.name = "altera-ps-spi",
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(of_ef_match),
 	},
 	.id_table = ef_spi_ids,
-	.probe = cyclonespi_probe,
-	.remove = cyclonespi_remove,
+	.probe = altera_ps_probe,
+	.remove = altera_ps_remove,
 };
 
-module_spi_driver(cyclonespi_driver)
+module_spi_driver(altera_ps_driver)
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Joshua Clayton <stillcompiling@gmail.com>");
-MODULE_DESCRIPTION("Module to load Altera FPGA firmware over spi");
+MODULE_DESCRIPTION("Module to load Altera FPGA firmware over SPI");
