@@ -44,8 +44,6 @@
 int powerboard_major = 44;
 int powerboard_minor = 0;
 
-const char driver_name[] = DEVICE_NAME;
-
 struct evi_pb {
 	struct semaphore lock;
 	struct spi_device *spi;
@@ -772,12 +770,19 @@ static const struct of_device_id evi_pb_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, evi_pb_dt_ids);
 #endif
 
+static const struct spi_device_id evi_pb_spi_ids[] = {
+	{DEVICE_NAME, 0},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, evi_pb_spi_ids);
+
 static struct spi_driver powerboard_spi_driver = {
 	.driver = {
-		   .name = driver_name,
+		   .name = DEVICE_NAME,
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(evi_pb_dt_ids),
 		   },
+	.id_table = evi_pb_spi_ids,
 	.probe = pb_probe,
 	.remove = pb_remove,
 };
